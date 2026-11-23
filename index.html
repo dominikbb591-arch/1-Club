@@ -262,6 +262,11 @@ body.ingame #app{height:100%;min-height:0;padding-block:8px}
 .rc-bar i{display:block;height:100%;width:100%;background:currentColor;transform-origin:left;transform:scaleX(1)}
 .stage:not(.void) .readcard .btn.primary{background:var(--paper-ink);color:var(--accent)}
 @media (max-height:700px){.ginstr{font-size:16px;min-height:40px}.game{gap:7px}.stage{padding:10px;gap:10px}.ginstr b{font-size:inherit}}
+.avatar{position:relative;width:84px;height:84px;border-radius:24px;background:var(--surface2);display:grid;place-items:center;flex:none}
+.lvbadge{position:absolute;right:-6px;bottom:-6px;min-width:28px;height:28px;padding:0 6px;border-radius:99px;background:var(--accent);color:var(--accent-ink);font-weight:800;display:grid;place-items:center;font-size:13px;border:3px solid var(--surface)}
+.swatch{width:34px;height:34px;border-radius:50%;border:3px solid transparent}
+.swatch[aria-pressed="true"]{border-color:var(--fg)}
+.xpbar>i{background:linear-gradient(90deg,var(--violet),#b4a9ff)}
 canvas.confetti{position:fixed;inset:0;pointer-events:none;z-index:80;width:100%;height:100%}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
@@ -327,7 +332,8 @@ const COL_PLURAL = { red: 'CZERWONE', blue: 'NIEBIESKIE', green: 'ZIELONE', yell
 
 /* ---------- stan ---------- */
 const KEY = 'onepct-club-v1';
-const defState = () => ({ name: '', mode: 'normal', sound: true, xp: 0, games: 0, best: { level: 0, score: 0 }, bestBy: { easy: 0, normal: 0, expert: 0 }, today: { date: '', level: 0, score: 0 }, streak: { count: 0, last: '', max: 0 }, daily: {}, history: [], badges: [], bestReact: 0 });
+const defState = () => ({ name: '', mode: 'normal', sound: true, xp: 0, games: 0, best: { level: 0, score: 0 }, bestBy: { easy: 0, normal: 0, expert: 0 }, today: { date: '', level: 0, score: 0 }, streak: { count: 0, last: '', max: 0 }, daily: {}, history: [], badges: [], bestReact: 0,
+  pid: '', avatar: 0, totalRun: 0, weekPts: {}, dayBest: {}, dailyPts: {}, catStats: {}, levelsPassed: 0, dailyDone: 0, trainBest: {}, outbox: [] });
 let S = load();
 function load() { try { const r = JSON.parse(localStorage.getItem(KEY) || 'null'); return Object.assign(defState(), r || {}); } catch (e) { return defState(); } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
@@ -342,7 +348,78 @@ function markPlayed() {
   save();
 }
 function streakNow() { return (S.streak.last === today() || S.streak.last === yesterday()) ? S.streak.count : 0; }
-const playerLevel = () => Math.floor(Math.sqrt(S.xp / 60)) + 1;
+/* ---------- XP i poziom gracza ---------- */
+// XP potrzebne na przejście z poziomu n na n+1: 100, 150, 200, ...
+const xpNeed = n => 100 + 50 * (n - 1);
+function levelInfo(xp = S.xp) {
+  let lv = 1, base = 0;
+  while (xp >= base + xpNeed(lv)) { base += xpNeed(lv); lv++; }
+  return { lv, into: xp - base, need: xpNeed(lv), toNext: base + xpNeed(lv) - xp };
+}
+const playerLevel = () => levelInfo().lv;
+const PTITLES = [[1, 'Nowicjusz'], [3, 'Uczeń'], [6, 'Myśliciel'], [10, 'Erudyta'], [15, 'Mędrzec'], [20, 'Arcymistrz'], [30, 'Legenda']];
+const ptitle = lv => PTITLES.filter(t => lv >= t[0]).pop()[1];
+const XP_MODE = { easy: .8, normal: 1, expert: 1.25 };
+// zwykła gra: 10, 12, 14 ... 68 XP za poziom (× tryb)
+const xpRun = (l, mode) => Math.round((8 + 2 * l) * XP_MODE[mode]);
+// trening: wyraźnie mniej, ale rośnie z poziomem: 4, 4, 5 ... 18 XP
+const xpTrain = l => Math.round(3 + .5 * l);
+// wyzwanie dnia: zależnie od zdobytych punktów (szybkości)
+const xpDaily = pts => pts ? Math.round(10 + pts / 30) : 2;
+function weekKey(d = new Date()) { const m = new Date(d); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return dkey(m); }
+function weekRange() { const m = new Date(); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); const e = new Date(m); e.setDate(m.getDate() + 6); const f = x => x.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }); return `${f(m)} – ${f(e)}`; }
+function playerId() {
+  if (!S.pid) { try { S.pid = crypto.randomUUID(); } catch (e) { S.pid = 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () => (Math.random() * 16 | 0).toString(16)); } save(); }
+  return S.pid;
+}
+const displayName = () => S.name || ('Gracz-' + playerId().slice(0, 4).toUpperCase());
+function catStat(cat, ok) { const c = S.catStats[cat] = S.catStats[cat] || { a: 0, p: 0 }; c.a++; if (ok) c.p++; }
+
+/* ---------- wspólny ranking online (Supabase) ----------
+   Uzupełnij dwa pola poniżej danymi z Supabase (Project Settings → API).
+   Puste = ranking działa tylko na tym urządzeniu. */
+const ONLINE = { url: 'https://nwjdppkpdaakrkeryrzh.supabase.co', key: 'sb_publishable_zlHiErYvCB81MVDuEewnJQ_pXSeF-Ae' };
+const onlineOn = () => !!(ONLINE.url && ONLINE.key);
+function sbFetch(path, body) {
+  return fetch(ONLINE.url.replace(/\/$/, '') + path, { method: 'POST', headers: Object.assign({ apikey: ONLINE.key, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, ONLINE.key.startsWith('eyJ') ? { Authorization: 'Bearer ' + ONLINE.key } : {}), body: JSON.stringify(body) })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.status === 204 ? null : r.text().then(t => t ? JSON.parse(t) : null); });
+}
+function submitScore(kind, points, level, mode) {
+  S.outbox.push({ player_id: playerId(), name: displayName(), kind, points: Math.round(points), level, mode, day: today(), week: weekKey() });
+  S.outbox = S.outbox.slice(-50); save(); flushOutbox();
+}
+let flushing = false;
+async function flushOutbox() {
+  if (!onlineOn() || flushing || !S.outbox.length) return;
+  flushing = true;
+  try { while (S.outbox.length) { await sbFetch('/rest/v1/scores', S.outbox[0]); S.outbox.shift(); save(); } } catch (e) { } finally { flushing = false; }
+}
+// lokalny ranking (tylko wyniki z tego urządzenia)
+function localBoard(board) {
+  const t = today(), w = weekKey();
+  const v = board === 'day' ? (S.dayBest[t] || { score: 0, lvl: 0 }) : board === 'week' ? { score: S.weekPts[w] || 0 } : board === 'all' ? { score: S.totalRun } : { score: (S.dailyPts[t] || 0) };
+  if (!v.score) return { rows: [], me: null, total: 0 };
+  const row = { player_id: playerId(), name: displayName(), points: v.score, level: v.lvl || S.best.level, games: 0 };
+  return { rows: [row], me: { rank: 1, points: v.score, total: 1 }, total: 1 };
+}
+async function loadBoard(board) {
+  if (!onlineOn()) return { ...localBoard(board), online: false };
+  try {
+    await flushOutbox();
+    const args = { p_board: board, p_day: today(), p_week: weekKey() };
+    const [rows, me] = await Promise.all([sbFetch('/rest/v1/rpc/leaderboard', args), sbFetch('/rest/v1/rpc/leaderboard_me', { ...args, p_player: playerId() })]);
+    const m = me && me[0] ? { rank: +me[0].rank, points: +me[0].points, total: +me[0].total } : null;
+    return { rows: rows || [], me: m, total: m ? m.total : (rows || []).length, online: true };
+  } catch (e) { return { ...localBoard(board), online: false, error: true }; }
+}
+const BOARDS = { day: { tab: 'Dzisiaj', title: 'Najlepsza gra dnia', unit: 'pkt w najlepszej grze', sub: r => `poziom ${r.level}` }, week: { tab: 'Tydzień', title: 'Suma punktów tygodnia', unit: 'pkt w tym tygodniu', sub: r => r.games ? `${r.games} gier` : 'pon–niedz' }, all: { tab: 'Ogółem', title: 'Suma wszystkich punktów', unit: 'pkt łącznie', sub: r => r.games ? `${r.games} gier` : `rekord: poz. ${r.level}` }, daily: { tab: 'Wyzwania', title: 'Wyzwania dnia: suma punktów', unit: 'pkt z wyzwań dnia', sub: r => r.games ? `${r.games} wyzwań` : 'dzisiaj' } };
+function boardRowsHTML(res, board, limit = 50) {
+  if (!res.rows.length) return `<div class="card muted" style="text-align:center">Jeszcze nikt nie ma punktów w tym rankingu. Zagraj i bądź pierwszy!</div>`;
+  const pid = playerId();
+  let h = res.rows.slice(0, limit).map((x, i) => `<div class="lrow ${x.player_id === pid ? 'me' : ''}"><span class="rk">${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</span><span class="nm">${esc(x.name)}${x.player_id === pid ? ' (Ty)' : ''}</span><span class="sc">${Number(x.points).toLocaleString('pl-PL')}<small>${BOARDS[board].sub(x)}</small></span></div>`).join('');
+  if (res.me && res.me.rank > limit) h += `<div class="muted" style="text-align:center">⋯</div><div class="lrow me"><span class="rk" style="font-size:11px">#${res.me.rank}</span><span class="nm">${esc(displayName())} (Ty)</span><span class="sc">${res.me.points.toLocaleString('pl-PL')}</span></div>`;
+  return h;
+}
 
 /* ---------- dźwięk ---------- */
 let AC = null;
@@ -392,12 +469,12 @@ const ICONS = {
 const ic = (n, cls = 'icon') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
 
 // Maskotka: mózg „Procent”
-function brainSVG(cls = 'brain', mood = 'happy') {
+function brainSVG(cls = 'brain', mood = 'happy', color = '#ffb3c7') {
   const mouth = mood === 'sad' ? '<path d="M50 70q10-7 20 0" stroke="#17161a" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
     : mood === 'wow' ? '<ellipse cx="60" cy="69" rx="5" ry="6" fill="#17161a"/>'
       : '<path d="M49 65q11 10 22 0" stroke="#17161a" stroke-width="3.5" fill="none" stroke-linecap="round"/>';
   return `<svg class="${cls}" viewBox="0 0 120 100" aria-hidden="true">
-  <g fill="#ffb3c7" stroke="#17161a" stroke-width="3.5" stroke-linejoin="round">
+  <g fill="${color}" stroke="#17161a" stroke-width="3.5" stroke-linejoin="round">
    <path d="M60 14C49 5 31 8 26 20 13 22 6 34 10 45 3 55 8 70 21 73c4 12 20 18 32 11 3 3 7 3 7 3V14z"/>
    <path d="M60 14c11-9 29-6 34 6 13 2 20 14 16 25 7 10 2 25-11 28-4 12-20 18-32 11-3 3-7 3-7 3V14z"/>
   </g>
@@ -983,6 +1060,7 @@ function makePuzzle(seed, lvl, cat, attempt = 0, forceType) {
    SILNIK POJEDYNCZEJ ZAGADKI
    ========================================================= */
 let cur = null;
+function leaveGame() { killPuzzle(); document.body.classList.remove('ingame'); }
 function killPuzzle() { if (cur) { cur.alive = false; cur.timers.forEach(clearTimeout); cancelAnimationFrame(cur.raf); cur = null; } }
 function runPuzzle(p, mode, onDone) {
   killPuzzle();
@@ -1018,7 +1096,8 @@ function runPuzzle(p, mode, onDone) {
       const frac = info.frac ?? api.frac();
       ses.alive = false; cancelAnimationFrame(ses.raf); ses.timers.forEach(clearTimeout);
       sfx(ok ? 'good' : 'bad'); stage.classList.add(ok ? 'ok' : 'no');
-      setTimeout(() => { if (cur === ses) cur = null; onDone(ok, { ...info, frac }); }, ok ? 550 : 900);
+      const ms = ses.tPlay ? Math.round(performance.now() - ses.tPlay) : 0;
+      setTimeout(() => { if (cur === ses) cur = null; onDone(ok, { ...info, frac, ms }); }, ok ? 550 : 900);
     }
   };
   // faza czytania polecenia: 2–5 s (zależnie od długości), potem start zadania i odliczania
@@ -1028,7 +1107,7 @@ function runPuzzle(p, mode, onDone) {
   stage.innerHTML = `<div class="readcard"><div class="eyebrow">${CATS[p.cat].name} · ${p.title}</div><div class="rc-text">${p.instr}</div><div class="rc-count">${Math.ceil(readMs / 1000)}</div><div class="rc-bar"><i style="transition:transform ${readMs}ms linear"></i></div><button class="btn primary sm" type="button">Jestem gotowy</button></div>`;
   requestAnimationFrame(() => requestAnimationFrame(() => { const i = $('.rc-bar i', stage); if (i) i.style.transform = 'scaleX(0)'; }));
   let started = false;
-  const begin = () => { if (started || !ses.alive) return; started = true; stage.innerHTML = ''; $('#g-instr').innerHTML = p.instr; p.render(stage, api); };
+  const begin = () => { if (started || !ses.alive) return; started = true; ses.tPlay = performance.now(); stage.innerHTML = ''; $('#g-instr').innerHTML = p.instr; p.render(stage, api); };
   $('.readcard button', stage).addEventListener('click', begin);
   const tStart = performance.now();
   for (let k = 1; k * 1000 < readMs; k++) api.after(k * 1000, () => { const c = $('.rc-count', stage); if (c && !started) { c.textContent = Math.ceil((readMs - (performance.now() - tStart)) / 1000); sfx('tick'); } });
@@ -1064,7 +1143,7 @@ function setHud(lvl, life, pctTxt) {
    ========================================================= */
 let RUN = null;
 function startRun({ seed = newSeed(), mode = S.mode, challenge = null, train = null } = {}) {
-  RUN = { seed, mode, challenge, train, lvl: 1, score: 0, life: 1, attempt: 0, startedAt: Date.now(), reacts: [], usedLife: false };
+  RUN = { seed, mode, challenge, train, lvl: 1, score: 0, xp: 0, curCat: null, life: 1, attempt: 0, startedAt: Date.now(), reacts: [], usedLife: false };
   gameShell({ ladder: true, life: 1, onQuit: () => finishRun(true), quitMsg: 'Wynik zostanie zapisany do tego poziomu.' });
   levelIntro();
 }
@@ -1079,26 +1158,28 @@ function levelIntro() {
   $('#go', o).onclick = go;
 }
 function playLevel(cat) {
+  RUN.curCat = cat;
   const p = makePuzzle(RUN.seed, RUN.lvl, cat, RUN.attempt);
   runPuzzle(p, RUN.mode, (ok, info) => ok ? levelPassed(info) : levelFailed(info));
 }
 function levelPassed(info) {
   const l = RUN.lvl;
   const pts = Math.round((100 + l * 25) * (1 + .6 * (info.frac || 0)) * MODES[RUN.mode].mult);
-  RUN.score += pts; RUN.attempt = 0;
+  const xp = RUN.train ? xpTrain(l) : xpRun(l, RUN.mode);
+  RUN.score += pts; RUN.xp += xp; RUN.attempt = 0;
+  catStat(RUN.curCat, true);
   if (info.react) RUN.reacts.push(info.react);
   if (l >= 30) { finishRun(false, true); return; }
   const prev = P[l - 1], now = P[l];
   const milestone = [5, 10, 15, 20, 25].includes(l);
   if (milestone) confetti(80);
-  const o = overlay(`${brainSVG('brain', l >= 20 ? 'wow' : 'happy').replace('class="brain"', 'class="brain" style="width:84px;height:70px;margin:0 auto"')}
+  const o = overlay(`${brainSVG('brain', l >= 20 ? 'wow' : 'happy', avatarColor()).replace('class="brain"', 'class="brain" style="width:84px;height:70px;margin:0 auto"')}
     <div class="big">Poziom ${l} zaliczony!</div>
     <div class="megapct"><span id="pc">${fmtPct(prev)}</span><small>%</small></div>
-    <p style="margin:0">Tylko <b>${fmtPct(now)}%</b> graczy przeszło ten poziom.${l >= 8 ? ' Czy Twój znajomy da radę?' : ''}</p>
-    <div class="row" style="justify-content:center"><span class="pill num">+${pts} pkt</span><span class="pill num">Σ ${RUN.score}</span></div>
-    <p class="muted" style="margin:0;font-size:13px">Następny: poziom ${l + 1}, przechodzi go ${fmtPct(P[l + 1])}%</p>
+    <p style="margin:0">Tylko <b>${fmtPct(now)}%</b> graczy przeszło ten poziom.${l >= 8 && !RUN.train ? ' Czy Twój znajomy da radę?' : ''}</p>
+    <div class="row" style="justify-content:center;flex-wrap:wrap"><span class="pill num">+${pts} pkt</span><span class="pill num" style="color:var(--violet)">+${xp} XP</span><span class="pill num">Σ ${RUN.score}</span></div>
+    <p class="muted" style="margin:0;font-size:13px">Następny: poziom ${l + 1}, przechodzi go ${fmtPct(P[l + 1])}%${RUN.train ? ` · +${xpTrain(l + 1)} XP` : ` · +${xpRun(l + 1, RUN.mode)} XP`}</p>
     <div class="btncol"><button class="btn primary" id="nx">Dalej ${ic('play')}</button>${RUN.train ? '' : `<button class="btn ghost" id="ch">${ic('people')} Wyzwij znajomego</button>`}</div>`);
-  // animacja spadku procentu
   const el = $('#pc', o), t0 = performance.now();
   (function anim() { const k = Math.min(1, (performance.now() - t0) / 900); const v = prev + (now - prev) * (1 - Math.pow(1 - k, 3)); el.textContent = fmtPct(Math.round(v * 10) / 10); if (k < 1) requestAnimationFrame(anim); })();
   $('#nx', o).onclick = () => { RUN.lvl++; levelIntro(); };
@@ -1106,8 +1187,9 @@ function levelPassed(info) {
   levelPassed.reopen = () => { closeOverlay(); RUN.lvl++; levelIntro(); };
 }
 function levelFailed(info) {
+  catStat(RUN.curCat, false);
   const canLife = RUN.life > 0;
-  const o = overlay(`${brainSVG('brain', 'sad').replace('class="brain"', 'class="brain" style="width:84px;height:70px;margin:0 auto"')}
+  const o = overlay(`${brainSVG('brain', 'sad', avatarColor()).replace('class="brain"', 'class="brain" style="width:84px;height:70px;margin:0 auto"')}
     <div class="big">Poziom ${RUN.lvl} nie zaliczony</div><p class="muted" style="margin:0">${info.msg || ''}</p>
     ${canLife ? `<p style="margin:0">Masz <b>koło ratunkowe</b>: dostaniesz nową zagadkę z tej samej kategorii.</p>` : ''}
     <div class="btncol">${canLife ? `<button class="btn primary" id="lf">${ic('heart')} Użyj koła ratunkowego</button>` : ''}<button class="btn ${canLife ? 'ghost' : 'primary'}" id="end">Zobacz wynik</button></div>`);
@@ -1118,18 +1200,43 @@ function finishRun(quit, won = false) {
   killPuzzle(); closeOverlay();
   const reached = won ? 30 : RUN.lvl - 1;
   const res = { seed: RUN.seed, mode: RUN.mode, lvl: reached, score: RUN.score, date: today(), train: RUN.train || null, ts: Date.now() };
+  const before = levelInfo();
+  let xp = RUN.xp, bonus = [];
   if (!RUN.train) {
+    xp += 5; bonus.push('udział +5');
+    if (won) { xp += 100; bonus.push('komplet 30 poziomów +100'); }
+    if (reached > S.best.level && reached >= 3) { xp += 25; bonus.push('nowy rekord +25'); }
     S.games++; S.history.unshift(res); S.history = S.history.slice(0, 40);
     if (reached > S.best.level || (reached === S.best.level && RUN.score > S.best.score)) S.best = { level: reached, score: RUN.score };
     S.bestBy[RUN.mode] = Math.max(S.bestBy[RUN.mode] || 0, reached);
     if (S.today.date !== today()) S.today = { date: today(), level: 0, score: 0 };
     if (RUN.score > S.today.score) S.today = { date: today(), level: reached, score: RUN.score };
+    const t = today(), w = weekKey();
+    if (!S.dayBest[t] || RUN.score > S.dayBest[t].score) S.dayBest[t] = { score: RUN.score, lvl: reached };
+    S.weekPts[w] = (S.weekPts[w] || 0) + RUN.score;
+    S.totalRun += RUN.score;
+    S.levelsPassed += reached;
+    if (RUN.score > 0) submitScore('run', RUN.score, reached, RUN.mode);
+  } else {
+    S.trainBest[RUN.train] = Math.max(S.trainBest[RUN.train] || 0, reached);
   }
-  S.xp += Math.round(RUN.score / 10);
+  S.xp += xp;
+  res.xp = xp; res.xpBonus = bonus; res.before = before;
   markPlayed();
   const newB = checkBadges({ run: res, usedLife: RUN.usedLife, challenge: !!RUN.challenge });
   save();
   resultScreen(res, RUN.challenge, newB);
+}
+function xpCard(res) {
+  const now = levelInfo(), up = res.before && now.lv > res.before.lv;
+  return `<div class="card" style="text-align:left;display:flex;flex-direction:column;gap:8px">
+    <div class="row"><div class="eyebrow">Doświadczenie</div><div class="sp"></div><b class="num" style="color:var(--violet)">+${res.xp} XP</b></div>
+    ${up ? `<div style="font-family:var(--font-d);font-weight:800;color:var(--accent)">Awans! Poziom gracza ${now.lv}: ${ptitle(now.lv)}</div>` : ''}
+    <div class="row"><b>Poziom ${now.lv}</b><span class="muted" style="font-size:13px">${ptitle(now.lv)}</span><div class="sp"></div><span class="muted num" style="font-size:12px">${now.into}/${now.need}</span></div>
+    <div class="bar xpbar"><i style="width:${Math.round(now.into / now.need * 100)}%"></i></div>
+    ${res.xpBonus && res.xpBonus.length ? `<div class="muted" style="font-size:12px">Bonusy: ${res.xpBonus.join(' · ')}</div>` : ''}
+    ${res.train ? `<div class="muted" style="font-size:12px">Trening daje mniej XP niż zwykła gra, ale im dalej dojdziesz, tym więcej XP za poziom.</div>` : ''}
+  </div>`;
 }
 
 /* ---------- ekran wyniku ---------- */
@@ -1144,13 +1251,14 @@ function resultScreen(res, challenge, newBadges = []) {
     vs = `<div class="eyebrow">Pojedynek</div><div class="vs"><div class="side ${meWin ? 'win' : ''}"><div class="nm">${esc(S.name || 'Ty')}</div><b>${res.lvl}</b><span class="muted num">${res.score} pkt</span></div><div class="mid">VS</div><div class="side ${!meWin && !tie ? 'win' : ''}"><div class="nm">${esc(challenge.name)}</div><b>${challenge.lvl}</b><span class="muted num">${challenge.score} pkt</span></div></div>
     <div class="big" style="font-size:18px">${tie ? 'Remis!' : meWin ? 'Wygrywasz pojedynek!' : `${esc(challenge.name)} wygrywa tym razem`}</div>`;
   }
-  document.body.classList.remove('ingame'); app.innerHTML = `<div class="screen" style="text-align:center;gap:16px;padding-top:10px">
-    ${brainSVG('brain', res.lvl >= 15 ? 'wow' : res.lvl >= 5 ? 'happy' : 'sad').replace('class="brain"', 'class="brain" style="width:110px;height:92px;margin:0 auto"')}
+  leaveGame(); app.innerHTML = `<div class="screen" style="text-align:center;gap:16px;padding-top:10px">
+    ${brainSVG('brain', res.lvl >= 15 ? 'wow' : res.lvl >= 5 ? 'happy' : 'sad', avatarColor()).replace('class="brain"', 'class="brain" style="width:110px;height:92px;margin:0 auto"')}
     <div class="eyebrow">${res.train ? 'Trening · ' + CATS[res.train].name : 'Twój wynik · ' + MODES[res.mode].label}</div>
     <div class="big" style="font-family:var(--font-d);font-size:20px;font-weight:800">${club ? 'Witaj w klubie!' : 'Należysz do'}</div>
     <div class="megapct">${club ? '1' : fmtPct(pct)}<small>%</small></div>
     <p style="margin:0">${club ? 'Przeszedłeś wszystkie 30 poziomów. Należysz do <b>1%</b> najlepszych mózgów.' : `Doszedłeś do poziomu <b>${res.lvl}</b>. Tak daleko dochodzi tylko <b>${fmtPct(pct)}%</b> graczy.`}</p>
     <div class="statgrid"><div class="stat"><b>${res.lvl}/30</b><span>poziom</span></div><div class="stat"><b>${res.score}</b><span>punkty</span></div><div class="stat"><b style="font-size:13px;line-height:1.9">${titleFor(res.lvl)}</b><span>ranga</span></div></div>
+    ${xpCard(res)}
     ${vs}
     ${newBadges.length ? `<div class="card" style="text-align:left"><div class="eyebrow" style="margin-bottom:8px">Nowe odznaki</div>${newBadges.map(b => `<div class="row">${medal(b, true)}<div><b>${BADGES[b].n}</b><div class="muted" style="font-size:12px">${BADGES[b].d}</div></div></div>`).join('')}</div>` : ''}
     <div class="btncol">
@@ -1293,73 +1401,95 @@ function dailyPlan(date = today()) {
   const lv = [6, 10, 14, 18, 22];
   return { list: cats.map((c, i) => ({ cat: c, lvl: lv[i], seed: `d${date.replace(/-/g, '')}${i}` })), bonus: { cat: r.pick(DAILY_CATS), lvl: 27, seed: `d${date.replace(/-/g, '')}b` } };
 }
-function dailyState() { const t = today(); S.daily[t] = S.daily[t] || { r: [null, null, null, null, null], bonus: null }; return S.daily[t]; }
+function dailyState() { const t = today(); const d = S.daily[t] = S.daily[t] || { r: [null, null, null, null, null], bonus: null }; d.pts = d.pts || [0, 0, 0, 0, 0]; d.ms = d.ms || [0, 0, 0, 0, 0]; d.bpts = d.bpts || 0; d.bms = d.bms || 0; return d; }
 function msToMidnight() { const n = new Date(), m = new Date(n); m.setHours(24, 0, 0, 0); return m - n; }
 const hms = ms => { const s = Math.floor(ms / 1000); return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map(v => String(v).padStart(2, '0')).join(':'); };
+const secs = ms => ms ? (ms / 1000).toFixed(1).replace('.', ',') + ' s' : '';
+// punkty za wyzwanie dnia: im szybciej, tym więcej (do ok. 1270, bonus ×2)
+const dailyPoints = (lvl, frac, bonus) => Math.round((150 + lvl * 10 + 850 * Math.max(0, Math.min(1, frac || 0))) * (bonus ? 2 : 1));
 function dailyScreen() {
   const plan = dailyPlan(), ds = dailyState(), done = ds.r.filter(v => v !== null).length, unlocked = done === 5;
-  document.body.classList.remove('ingame'); app.innerHTML = `<div class="screen">
+  const sum = S.dailyPts[today()] || 0;
+  leaveGame(); app.innerHTML = `<div class="screen">
     <div class="topbar"><button class="iconbtn" id="bk" aria-label="Wróć">${ic('back')}</button><h2 style="font-size:20px">Wyzwania dnia</h2><div class="sp"></div><span class="pill num" id="cd">${hms(msToMidnight())}</span></div>
-    <p class="muted" style="margin:0">5 nowych zagadek każdego dnia, każda podejście tylko raz. Zalicz wszystkie, a odblokujesz poziom bonusowy za podwójne punkty.</p>
-    <div class="list">${plan.list.map((d, i) => { const v = ds.r[i]; return `<div class="dchal"><div class="ic">${catArt(d.cat)}</div><div><b>Wyzwanie ${i + 1}</b><div class="muted" style="font-size:13px">${CATS[d.cat].name} · trudność ${d.lvl}/30 · zalicza ${fmtPct(P[d.lvl])}%</div></div>${v === null ? `<button class="btn primary sm" data-i="${i}">Graj</button>` : `<span class="dot ${v ? 'ok' : 'no'}">${v ? '✓' : '✕'}</span>`}</div>`; }).join('')}
-      <div class="dchal" style="${unlocked ? 'box-shadow:inset 0 0 0 2px var(--accent)' : ''}"><div class="ic" style="display:grid;place-items:center;background:var(--surface2);color:var(--accent)">${ic('star', 'icon')}</div><div><b>Poziom bonusowy</b><div class="muted" style="font-size:13px">${unlocked ? `${CATS[plan.bonus.cat].name} · trudność 27/30 · ×2 punkty` : `Zagraj wszystkie 5 wyzwań (${done}/5)`}</div></div>${ds.bonus !== null ? `<span class="dot ${ds.bonus ? 'ok' : 'no'}">${ds.bonus ? '✓' : '✕'}</span>` : `<button class="btn primary sm" data-i="b" ${unlocked ? '' : 'disabled'}>Graj</button>`}</div>
+    <p class="muted" style="margin:0">5 nowych zagadek każdego dnia, każda tylko raz. <b style="color:var(--fg)">Im szybciej rozwiążesz, tym więcej punktów.</b> Zalicz wszystkie, a odblokujesz bonus za podwójne punkty.</p>
+    <div class="card row"><div><div class="eyebrow">Twoje punkty dzisiaj</div><div style="font-family:var(--font-d);font-size:26px;font-weight:800;color:var(--accent)" class="num">${sum.toLocaleString('pl-PL')}</div></div><div class="sp"></div><div style="text-align:right"><div class="eyebrow">Miejsce</div><div id="dmy" style="font-family:var(--font-d);font-size:22px;font-weight:800">—</div></div></div>
+    <div class="list">${plan.list.map((d, i) => { const v = ds.r[i]; return `<div class="dchal"><div class="ic">${catArt(d.cat)}</div><div><b>Wyzwanie ${i + 1}</b><div class="muted" style="font-size:13px">${CATS[d.cat].name} · trudność ${d.lvl}/30${v === true ? ` · <span style="color:var(--accent)">${ds.pts[i]} pkt</span>${ds.ms[i] ? ' · ' + secs(ds.ms[i]) : ''}` : v === false ? ' · 0 pkt' : ` · zalicza ${fmtPct(P[d.lvl])}%`}</div></div>${v === null ? `<button class="btn primary sm" data-i="${i}">Graj</button>` : `<span class="dot ${v ? 'ok' : 'no'}">${v ? '✓' : '✕'}</span>`}</div>`; }).join('')}
+      <div class="dchal" style="${unlocked ? 'box-shadow:inset 0 0 0 2px var(--accent)' : ''}"><div class="ic" style="display:grid;place-items:center;background:var(--surface2);color:var(--accent)">${ic('star', 'icon')}</div><div><b>Poziom bonusowy</b><div class="muted" style="font-size:13px">${ds.bonus === true ? `<span style="color:var(--accent)">${ds.bpts} pkt</span> · ${secs(ds.bms)}` : unlocked ? `${CATS[plan.bonus.cat].name} · trudność 27/30 · ×2 punkty` : `Zagraj wszystkie 5 wyzwań (${done}/5)`}</div></div>${ds.bonus !== null ? `<span class="dot ${ds.bonus ? 'ok' : 'no'}">${ds.bonus ? '✓' : '✕'}</span>` : `<button class="btn primary sm" data-i="b" ${unlocked ? '' : 'disabled'}>Graj</button>`}</div>
     </div>
-    ${done ? `<div class="card"><div class="eyebrow" style="margin-bottom:8px">Twój dzisiejszy wynik</div><div class="linkbox" style="font-size:15px;letter-spacing:.1em">${dailyGrid()}</div><button class="btn ghost" id="cpy" style="margin-top:10px;width:100%">${ic('copy')} Kopiuj, aby pochwalić się znajomym</button></div>` : ''}
+    ${done ? `<div class="card"><div class="eyebrow" style="margin-bottom:8px">Pochwal się wynikiem</div><div class="linkbox" style="font-size:15px;letter-spacing:.1em">${dailyGrid()} · ${sum} pkt</div><button class="btn ghost" id="cpy" style="margin-top:10px;width:100%">${ic('copy')} Kopiuj dla znajomych</button></div>` : ''}
+    <div class="row" style="margin-top:4px"><div class="eyebrow">Ranking wyzwań dnia</div><div class="sp"></div><span class="muted" style="font-size:12px">${new Date().toLocaleDateString('pl-PL')}</span></div>
+    <div class="list" id="dboard"><div class="card muted" style="text-align:center">Ładowanie rankingu…</div></div>
+    <p class="foot" id="dnote"></p>
   </div>`;
   $('#bk').onclick = home;
   $$('[data-i]').forEach(b => b.onclick = () => playDaily(b.dataset.i));
-  const cp = $('#cpy'); if (cp) cp.onclick = () => copyText(`1% Club · Wyzwania ${new Date().toLocaleDateString('pl-PL')}\n${dailyGrid()}\nSeria: ${streakNow()} dni\n${linkFor('')}`.replace(/#$/, ''));
+  const cp = $('#cpy'); if (cp) cp.onclick = () => copyText(`1% Club · Wyzwania ${new Date().toLocaleDateString('pl-PL')}\n${dailyGrid()} · ${sum} pkt\nSeria: ${streakNow()} dni\n${linkFor('')}`.replace(/#$/, ''));
   clearInterval(dailyScreen.iv); dailyScreen.iv = setInterval(() => { const e = $('#cd'); if (!e) return clearInterval(dailyScreen.iv); e.textContent = hms(msToMidnight()); }, 1000);
+  loadBoard('daily').then(res => {
+    const el = $('#dboard'); if (!el) return;
+    el.innerHTML = boardRowsHTML(res, 'daily', 20);
+    $('#dmy').textContent = res.me ? '#' + res.me.rank : '—';
+    $('#dnote').textContent = boardNote(res);
+  });
+}
+function boardNote(res) {
+  if (res.online) return `Ranking na żywo: ${res.total.toLocaleString('pl-PL')} graczy w tym zestawieniu.`;
+  if (res.error) return 'Brak połączenia z rankingiem. Pokazuję wyniki z tego urządzenia, prześlę je, gdy połączenie wróci.';
+  return 'Ranking wspólny dla wszystkich graczy włączy się po podłączeniu bazy wyników. Na razie widać tylko wyniki z tego urządzenia.';
 }
 function dailyGrid() { const ds = dailyState(); return ds.r.map(v => v === null ? '⬜' : v ? '🟨' : '⬛').join('') + (ds.bonus ? ' ⭐' : ds.bonus === false ? ' ✖' : ''); }
 function playDaily(i) {
   const plan = dailyPlan(), d = i === 'b' ? plan.bonus : plan.list[+i];
-  gameShell({ ladder: false, life: null, onQuit: () => { recordDaily(i, false); dailyScreen(); }, quitMsg: 'Przerwanie liczy się jako niezaliczone wyzwanie.' });
+  gameShell({ ladder: false, life: null, onQuit: () => { recordDaily(i, false, 0, 0, d.cat); dailyScreen(); }, quitMsg: 'Przerwanie liczy się jako niezaliczone wyzwanie.' });
   setHud(i === 'b' ? 'Bonus' : `Wyzwanie ${+i + 1}/5`, null, `zalicza ${fmtPct(P[d.lvl])}%`);
   const p = makePuzzle(d.seed, d.lvl, d.cat);
   runPuzzle(p, S.mode, (ok, info) => {
-    const pts = ok ? Math.round((100 + d.lvl * 25) * (1 + .6 * (info.frac || 0)) * (i === 'b' ? 2 : 1)) : 0;
-    recordDaily(i, ok, pts);
-    const o = overlay(`${brainSVG('brain', ok ? 'happy' : 'sad').replace('class="brain"', 'class="brain" style="width:84px;height:70px;margin:0 auto"')}<div class="big">${ok ? 'Zaliczone!' : 'Nie tym razem'}</div><p class="muted" style="margin:0">${ok ? `+${pts} pkt · tylko ${fmtPct(P[d.lvl])}% graczy daje radę` : info.msg || ''}</p><button class="btn primary" id="bk2">Wróć do wyzwań</button>`);
+    const pts = ok ? dailyPoints(d.lvl, info.frac, i === 'b') : 0;
+    const xp = recordDaily(i, ok, pts, info.ms || 0, d.cat);
+    const o = overlay(`${brainSVG('brain', ok ? 'happy' : 'sad', avatarColor()).replace('class="brain"', 'class="brain" style="width:84px;height:70px;margin:0 auto"')}<div class="big">${ok ? 'Zaliczone!' : 'Nie tym razem'}</div>
+      ${ok ? `<div class="megapct" style="font-size:54px">+${pts}<small> pkt</small></div><p class="muted" style="margin:0">Czas: ${secs(info.ms) || '—'} · szybkość ${Math.round((info.frac || 0) * 100)}%${i === 'b' ? ' · bonus ×2' : ''}</p>` : `<p class="muted" style="margin:0">${info.msg || ''}</p>`}
+      <div class="row" style="justify-content:center"><span class="pill num" style="color:var(--violet)">+${xp} XP</span><span class="pill num">dziś Σ ${(S.dailyPts[today()] || 0).toLocaleString('pl-PL')} pkt</span></div>
+      <button class="btn primary" id="bk2">Wróć do wyzwań</button>`);
     if (ok && i === 'b') confetti(140);
     $('#bk2', o).onclick = () => { closeOverlay(); dailyScreen(); };
   });
 }
-function recordDaily(i, ok, pts = 0) {
+function recordDaily(i, ok, pts = 0, ms = 0, cat) {
   const ds = dailyState();
-  if (i === 'b') { if (ds.bonus === null) ds.bonus = ok; } else if (ds.r[+i] === null) ds.r[+i] = ok;
-  S.xp += Math.round(pts / 10); markPlayed();
-  checkBadges({}); save();
+  const first = i === 'b' ? ds.bonus === null : ds.r[+i] === null;
+  if (!first) return 0;
+  if (i === 'b') { ds.bonus = ok; ds.bpts = pts; ds.bms = ms; } else { ds.r[+i] = ok; ds.pts[+i] = pts; ds.ms[+i] = ms; }
+  if (cat) catStat(cat, ok);
+  if (ok) S.dailyDone++;
+  const xp = xpDaily(pts);
+  S.xp += xp;
+  if (pts) { S.dailyPts[today()] = (S.dailyPts[today()] || 0) + pts; submitScore('daily', pts, 0, S.mode); }
+  markPlayed(); checkBadges({}); save();
+  return xp;
 }
 
 /* =========================================================
-   RANKING (symulowany) + ODZNAKI + PROFIL
+   RANKINGI (tylko prawdziwe wyniki) + ODZNAKI + PROFIL
    ========================================================= */
-const BOT_NAMES = ['NeuronX', 'Kasia_K', 'Mózgowiec', 'Ola.pl', 'Bartek99', 'Zuzia', 'Piotrek_G', 'Szybki_Lis', 'LogikaPro', 'Hania', 'Kuba_W', 'Agnieszka', 'Tomasz', 'Iga_M', 'Wojtas', 'Natalia', 'Filip.exe', 'AniaB', 'Michał', 'Synapsa', 'Dominika', 'Kamil_K', 'Julka', 'Maciek', 'Ewelina', 'Paweł', 'Ninja_PL', 'Ksenia', 'Grzesiek', 'Magda'];
-function botBoard(key, n = 30) {
-  const r = RNG(hashStr('board|' + key));
-  const names = r.shuffle(BOT_NAMES);
-  return range(n).map(i => { const lvl = Math.max(4, 30 - Math.floor(i * .55 + r() * 2.5)); return { name: names[i % names.length] + (i >= names.length ? '_' + i : ''), lvl, score: Math.round(lvl * (lvl * 14 + 110) * (1 + r() * .35)) }; }).sort((a, b) => b.score - a.score);
-}
-function rankingScreen(tab = 'today') {
-  const total = 30000 + (hashStr('players|' + today()) % 30000);
-  const mine = tab === 'today' ? (S.today.date === today() ? S.today : { level: 0, score: 0 }) : S.best;
-  const board = botBoard(tab === 'today' ? today() : 'all').slice(0, 12);
-  const me = { name: (S.name || 'Ty') + ' (Ty)', lvl: mine.level, score: mine.score, me: true };
-  const rankPos = mine.score ? Math.max(1, Math.round(total * P[mine.level] / 100 * (.95 - Math.min(.5, mine.score / (mine.level * (mine.level * 14 + 110) * 1.4 + 1) * .5)))) : null;
-  let rows = board.map((b, i) => ({ ...b, rk: i + 1 }));
-  if (mine.score && board.some(b => mine.score > b.score)) { rows.push({ ...me, rk: 0 }); rows.sort((a, b) => b.score - a.score); rows = rows.slice(0, 12).map((x, i) => ({ ...x, rk: i + 1 })); }
-  const inTop = rows.some(x => x.me);
-  document.body.classList.remove('ingame'); app.innerHTML = `<div class="screen">
+function rankingScreen(tab = 'day') {
+  const B = BOARDS[tab];
+  leaveGame(); app.innerHTML = `<div class="screen">
     <div class="topbar"><button class="iconbtn" id="bk" aria-label="Wróć">${ic('back')}</button><h2 style="font-size:20px">Ranking</h2></div>
-    <div class="tabs"><button aria-pressed="${tab === 'today'}" data-t="today">Dzisiaj</button><button aria-pressed="${tab === 'all'}" data-t="all">Wszech czasów</button></div>
-    <div class="card row"><div><div class="eyebrow">Twoja pozycja</div><div style="font-family:var(--font-d);font-size:24px;font-weight:800">${rankPos ? '#' + (inTop ? rows.find(x => x.me).rk : rankPos.toLocaleString('pl-PL')) : '—'}</div><div class="muted" style="font-size:13px">z ${total.toLocaleString('pl-PL')} graczy ${tab === 'today' ? 'dzisiaj' : 'w tym tygodniu'}</div></div><div class="sp"></div><div style="text-align:right"><div class="bigpct" style="font-size:30px">${mine.score ? fmtPct(P[mine.level]) + '%' : '—'}</div><div class="muted" style="font-size:12px">${mine.score ? 'top graczy' : 'zagraj, by wejść'}</div></div></div>
-    <div class="list">${rows.map(x => `<div class="lrow ${x.me ? 'me' : ''}"><span class="rk">${x.rk <= 3 ? ['🥇', '🥈', '🥉'][x.rk - 1] : x.rk}</span><span class="nm">${esc(x.name)}</span><span class="sc">${x.score.toLocaleString('pl-PL')}<small>poziom ${x.lvl}</small></span></div>`).join('')}
-    ${!inTop && mine.score ? `<div class="muted" style="text-align:center">⋯</div><div class="lrow me"><span class="rk" style="font-size:11px">#${rankPos.toLocaleString('pl-PL')}</span><span class="nm">${esc(me.name)}</span><span class="sc">${mine.score.toLocaleString('pl-PL')}<small>poziom ${mine.level}</small></span></div>` : ''}</div>
-    <p class="foot">Prototyp: wyniki innych graczy są symulowane. Twoje wyniki są zapisywane na tym urządzeniu.</p>
+    <div class="tabs" style="grid-template-columns:repeat(4,1fr)">${Object.entries(BOARDS).map(([k, b]) => `<button aria-pressed="${tab === k}" data-t="${k}" style="font-size:13px">${b.tab}</button>`).join('')}</div>
+    <div class="card row"><div style="min-width:0"><div class="eyebrow">${B.title}</div><div style="font-family:var(--font-d);font-size:24px;font-weight:800" id="rmy">—</div><div class="muted" style="font-size:13px">${tab === 'week' ? weekRange() : tab === 'all' ? 'od początku' : new Date().toLocaleDateString('pl-PL')}</div></div><div class="sp"></div><div style="text-align:right"><div class="bigpct num" style="font-size:26px" id="rpts">—</div><div class="muted" style="font-size:12px">${B.unit}</div></div></div>
+    <div class="list" id="board"><div class="card muted" style="text-align:center">Ładowanie…</div></div>
+    <p class="foot" id="rnote"></p>
   </div>`;
   $('#bk').onclick = home;
   $$('[data-t]').forEach(b => b.onclick = () => rankingScreen(b.dataset.t));
+  loadBoard(tab).then(res => {
+    if (!$('#board')) return;
+    $('#board').innerHTML = boardRowsHTML(res, tab);
+    $('#rmy').textContent = res.me ? `#${res.me.rank} z ${res.me.total}` : 'Brak wyniku';
+    $('#rpts').textContent = res.me ? res.me.points.toLocaleString('pl-PL') : '0';
+    $('#rnote').textContent = boardNote(res);
+  });
 }
 const BADGES = {
   first: { n: 'Pierwszy krok', d: 'Ukończ pierwszą grę', i: 'play' },
@@ -1397,34 +1527,56 @@ function checkBadges(ctx) {
   return add;
 }
 function badgesScreen() {
-  document.body.classList.remove('ingame'); app.innerHTML = `<div class="screen">
+  leaveGame(); app.innerHTML = `<div class="screen">
     <div class="topbar"><button class="iconbtn" id="bk" aria-label="Wróć">${ic('back')}</button><h2 style="font-size:20px">Odznaki</h2><div class="sp"></div><span class="pill num">${S.badges.length}/${Object.keys(BADGES).length}</span></div>
     <div class="badges">${Object.keys(BADGES).map(id => `<div class="badge ${S.badges.includes(id) ? '' : 'off'}">${medal(id)}<b>${BADGES[id].n}</b><span>${BADGES[id].d}</span></div>`).join('')}</div></div>`;
   $('#bk').onclick = home;
 }
+const AVATARS = ['#ffb3c7', '#ffd23f', '#8be3b0', '#9ec5ff', '#c9b2ff', '#ffb27a'];
+const avatarColor = () => AVATARS[S.avatar || 0] || AVATARS[0];
 function profileScreen() {
-  const lv = playerLevel(), nextXp = 60 * lv * lv, prevXp = 60 * (lv - 1) * (lv - 1);
-  document.body.classList.remove('ingame'); app.innerHTML = `<div class="screen">
-    <div class="topbar"><button class="iconbtn" id="bk" aria-label="Wróć">${ic('back')}</button><h2 style="font-size:20px">Profil</h2></div>
-    <div class="card" style="display:flex;flex-direction:column;gap:12px">
-      <div class="field-in"><label class="eyebrow" for="pn">Pseudonim</label><input id="pn" maxlength="14" value="${esc(S.name)}" placeholder="Jak mają Cię widzieć znajomi?"></div>
-      <div><div class="row"><b>Poziom gracza ${lv}</b><div class="sp"></div><span class="muted num" style="font-size:13px">${S.xp} / ${nextXp} XP</span></div><div class="bar" style="margin-top:6px"><i style="width:${Math.round((S.xp - prevXp) / (nextXp - prevXp) * 100)}%"></i></div></div>
-    </div>
-    <div class="statgrid"><div class="stat"><b>${S.games}</b><span>gier</span></div><div class="stat"><b>${S.best.level}</b><span>rekord</span></div><div class="stat"><b>${S.streak.max || 0}</b><span>najdł. seria</span></div>
-      <div class="stat"><b>${S.bestBy.easy || 0}</b><span>łatwy</span></div><div class="stat"><b>${S.bestBy.normal || 0}</b><span>normalny</span></div><div class="stat"><b>${S.bestBy.expert || 0}</b><span>ekspert</span></div></div>
-    <div class="card"><div class="eyebrow" style="margin-bottom:6px">Najszybsza reakcja</div><div style="font-family:var(--font-d);font-size:22px">${S.bestReact ? S.bestReact + ' ms' : '—'}</div></div>
-    <div class="card"><div class="eyebrow" style="margin-bottom:8px">Ostatnie gry</div>${S.history.filter(h => !h.train).slice(0, 6).map(h => `<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><span class="num muted" style="font-size:12px">${h.date}</span><span>${MODES[h.mode].label}</span><div class="sp"></div><b class="num">poz. ${h.lvl}</b><span class="num muted">${h.score}</span></div>`).join('') || '<span class="muted">Brak gier</span>'}</div>
+  const L = levelInfo(), t = today();
+  const runs = S.history.filter(h => !h.train);
+  const avgLvl = runs.length ? (runs.reduce((a, h) => a + h.lvl, 0) / runs.length).toFixed(1).replace('.', ',') : '—';
+  const statBox = (v, l) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`;
+  const catRows = Object.entries(CATS).map(([k, c]) => {
+    const s = S.catStats[k] || { a: 0, p: 0 }, pct = s.a ? Math.round(s.p / s.a * 100) : 0;
+    return `<div><div class="row" style="font-size:13px"><i class="cdot" style="width:8px;height:8px;border-radius:50%;background:${c.color};display:inline-block"></i><b>${c.name}</b><div class="sp"></div><span class="muted num">${s.a ? `${pct}% · ${s.p}/${s.a}` : 'brak prób'}</span></div><div class="bar" style="height:8px;margin-top:6px"><i style="width:${pct}%;background:${c.color}"></i></div><div class="muted" style="font-size:11px;margin-top:4px">Trening: rekord ${S.trainBest[k] || 0}/30</div></div>`;
+  }).join('');
+  leaveGame(); app.innerHTML = `<div class="screen">
+    <div class="topbar"><button class="iconbtn" id="bk" aria-label="Wróć">${ic('back')}</button><h2 style="font-size:20px">Profil gracza</h2></div>
+    <section class="hero" style="gap:12px">
+      <div class="row" style="gap:14px;align-items:center">
+        <div class="avatar">${brainSVG('brain', S.best.level >= 15 ? 'wow' : 'happy', avatarColor()).replace('class="brain"', 'class="brain" style="width:72px;height:60px"')}<span class="lvbadge num">${L.lv}</span></div>
+        <div style="min-width:0;flex:1"><div style="font-family:var(--font-d);font-size:20px;font-weight:800;overflow-wrap:anywhere">${esc(displayName())}</div><div style="color:var(--accent);font-weight:800">${ptitle(L.lv)} · poziom ${L.lv}</div><div class="muted" style="font-size:12px">Ranga w grze: ${titleFor(S.best.level)}</div></div>
+      </div>
+      <div><div class="row" style="font-size:13px"><span class="muted">Doświadczenie</span><div class="sp"></div><span class="num">${L.into} / ${L.need} XP</span></div><div class="bar xpbar" style="margin-top:6px"><i style="width:${Math.round(L.into / L.need * 100)}%"></i></div><div class="muted" style="font-size:12px;margin-top:6px">Do poziomu ${L.lv + 1} brakuje ${L.toNext} XP · łącznie ${S.xp.toLocaleString('pl-PL')} XP</div></div>
+      <div class="field-in"><label class="eyebrow" for="pn">Pseudonim w rankingu</label><input id="pn" maxlength="14" value="${esc(S.name)}" placeholder="${esc(displayName())}"></div>
+      <div><div class="eyebrow" style="margin-bottom:8px">Kolor mózgu</div><div class="row" style="gap:8px">${AVATARS.map((c, i) => `<button class="swatch" data-av="${i}" aria-label="Kolor ${i + 1}" aria-pressed="${(S.avatar || 0) === i}" style="background:${c}"></button>`).join('')}</div></div>
+    </section>
+    <div class="eyebrow">Punkty</div>
+    <div class="statgrid">${statBox((S.dayBest[t] ? S.dayBest[t].score : 0).toLocaleString('pl-PL'), 'dziś (najl.)')}${statBox((S.weekPts[weekKey()] || 0).toLocaleString('pl-PL'), 'ten tydzień')}${statBox(S.totalRun.toLocaleString('pl-PL'), 'łącznie')}${statBox((S.dailyPts[t] || 0).toLocaleString('pl-PL'), 'wyzwania dziś')}${statBox(S.best.score.toLocaleString('pl-PL'), 'najl. gra')}${statBox(S.dailyDone || 0, 'wyzwań zal.')}</div>
+    <div class="eyebrow">Gra</div>
+    <div class="statgrid">${statBox(`${S.best.level}/30`, 'rekord')}${statBox(fmtPct(P[S.best.level]) + '%', 'jesteś w top')}${statBox(avgLvl, 'śr. poziom')}${statBox(S.games, 'gier')}${statBox(`${streakNow()} / ${S.streak.max || 0}`, 'seria / max')}${statBox(S.bestReact ? S.bestReact + ' ms' : '—', 'reakcja')}</div>
+    <div class="card" style="display:flex;flex-direction:column;gap:12px"><div class="eyebrow">Skuteczność w kategoriach</div>${catRows}</div>
+    <div class="card"><div class="eyebrow" style="margin-bottom:8px">Rekordy w trybach</div><div class="statgrid">${Object.entries(MODES).map(([k, m]) => statBox(`${S.bestBy[k] || 0}/30`, m.label)).join('')}</div></div>
+    <button class="card row" id="pb" style="text-align:left"><div><div class="eyebrow">Odznaki</div><div style="font-weight:800;margin-top:4px">${S.badges.length} z ${Object.keys(BADGES).length}</div></div><div class="sp"></div><div class="row" style="gap:4px">${S.badges.slice(-4).map(b => medal(b, true)).join('') || '<span class="muted">jeszcze brak</span>'}</div></button>
+    <div class="card"><div class="eyebrow" style="margin-bottom:8px">Ostatnie gry</div>${runs.slice(0, 8).map(h => `<div class="row" style="padding:7px 0;border-bottom:1px solid var(--line);font-size:13px"><span class="num muted" style="font-size:12px">${h.date.slice(5).split('-').reverse().join('.')}</span><span>${MODES[h.mode].label}</span><div class="sp"></div><b class="num">poz. ${h.lvl}</b><span class="num" style="color:var(--accent);min-width:60px;text-align:right">${h.score.toLocaleString('pl-PL')}</span></div>`).join('') || '<span class="muted">Brak gier</span>'}</div>
+    <div class="card" style="display:flex;flex-direction:column;gap:6px"><div class="eyebrow">Jak zdobywać XP</div><div class="muted" style="font-size:13px;line-height:1.6">Zwykła gra: 10 XP za poziom 1, rośnie do 68 XP za poziom 30 (Łatwy ×0,8, Ekspert ×1,25), +5 za grę, +25 za nowy rekord, +100 za komplet 30 poziomów.<br>Trening: 4 XP na początku, do 18 XP za poziom 30.<br>Wyzwania dnia: 10 XP + więcej za szybkie rozwiązanie.</div></div>
+    <p class="foot">ID gracza: ${playerId().slice(0, 8)} · ${onlineOn() ? 'ranking online włączony' : 'wyniki zapisane na tym urządzeniu'}</p>
     <button class="btn line" id="rs">Wyczyść postęp</button>
   </div>`;
   $('#bk').onclick = home;
-  $('#pn').onchange = e => { S.name = e.target.value.trim().slice(0, 14); save(); toast('Zapisano pseudonim'); };
+  $('#pb').onclick = badgesScreen;
+  $('#pn').onchange = e => { S.name = e.target.value.trim().slice(0, 14); save(); toast('Zapisano pseudonim'); profileScreen(); };
+  $$('[data-av]').forEach(b => b.onclick = () => { S.avatar = +b.dataset.av; save(); profileScreen(); });
   $('#rs').onclick = () => {
-    const o = overlay(`<div class="big">Wyczyścić cały postęp?</div><p class="muted" style="margin:0">Rekordy, seria, odznaki i historia zostaną usunięte z tego urządzenia.</p><div class="btnrow"><button class="btn ghost" id="n">Anuluj</button><button class="btn primary" id="y" style="background:var(--bad);color:#fff">Wyczyść</button></div>`);
-    $('#n', o).onclick = closeOverlay; $('#y', o).onclick = () => { S = defState(); save(); closeOverlay(); home(); toast('Postęp wyczyszczony'); };
+    const o = overlay(`<div class="big">Wyczyścić cały postęp?</div><p class="muted" style="margin:0">Rekordy, XP, seria, odznaki i historia zostaną usunięte z tego urządzenia. Wyniki wysłane już do rankingu zostaną w nim.</p><div class="btnrow"><button class="btn ghost" id="n">Anuluj</button><button class="btn primary" id="y" style="background:var(--bad);color:#fff">Wyczyść</button></div>`);
+    $('#n', o).onclick = closeOverlay; $('#y', o).onclick = () => { const pid = S.pid; S = defState(); S.pid = pid; save(); closeOverlay(); home(); toast('Postęp wyczyszczony'); };
   };
 }
 function trainPick(cat) {
-  const o = overlay(`<div class="intro"><div class="art">${catArt(cat)}</div><div class="big">Trening: ${CATS[cat].name}</div><p class="muted" style="margin:0">Same zagadki z tej kategorii, od poziomu 1 coraz trudniej. Nie liczy się do rankingu.</p></div>
+  const o = overlay(`<div class="intro"><div class="art">${catArt(cat)}</div><div class="big">Trening: ${CATS[cat].name}</div><p class="muted" style="margin:0">Same zagadki z tej kategorii, od poziomu 1 coraz trudniej. Daje mniej XP niż zwykła gra (od 4 do 18 XP za poziom, im dalej, tym więcej) i nie liczy się do rankingu.</p></div>
    <div class="btncol"><button class="btn primary" id="go">${ic('play')} Zacznij trening</button><button class="btn line" id="cl">Zamknij</button></div>`);
   $('#go', o).onclick = () => { closeOverlay(); startRun({ train: cat }); };
   $('#cl', o).onclick = closeOverlay;
@@ -1460,17 +1612,17 @@ function home() {
   killPuzzle(); closeOverlay(); RUN = null;
   const best = S.best.level, st = streakNow(), ds = S.daily[today()] || { r: [null, null, null, null, null], bonus: null };
   const dDone = ds.r.filter(v => v !== null).length;
-  document.body.classList.remove('ingame'); app.innerHTML = `<div class="screen">
+  leaveGame(); app.innerHTML = `<div class="screen">
     <div class="topbar"><div class="logo">${logoSVG()}<span>CLUB</span></div><div class="sp"></div>
       <span class="pill" title="Seria dni" style="color:${st ? 'var(--accent)' : 'var(--muted)'}">${ic('flame')}<span class="num">${st}</span></span>
       <button class="iconbtn" id="snd" aria-label="Dźwięk">${ic(S.sound ? 'sound' : 'mute')}</button>
-      <button class="iconbtn" id="prof" aria-label="Profil">${ic('user')}</button></div>
+      <button class="pill" id="prof" aria-label="Profil" style="min-height:40px;border-radius:12px">${ic('user')}<span class="num">${playerLevel()}</span></button></div>
 
     <section class="hero">
       <div class="row"><h1>1% CLUB</h1><div class="sp"></div><span class="tag">BETA</span></div>
       <div style="font-size:19px;margin-top:-6px">Czy Twój mózg jest w top 1%?</div>
       <div class="preview">${previewSVG()}</div>
-      <div class="row"><div><div class="eyebrow">${best ? 'Twój rekord' : 'Start'}</div><div style="font-family:var(--font-d);font-size:20px;font-weight:800;white-space:nowrap">Poziom ${best}/30</div></div><div class="sp"></div><span class="bigpct">${fmtPct(P[best])}%</span>${brainSVG()}</div>
+      <div class="row"><div><div class="eyebrow">${best ? 'Twój rekord' : 'Start'}</div><div style="font-family:var(--font-d);font-size:20px;font-weight:800;white-space:nowrap">Poziom ${best}/30</div></div><div class="sp"></div><span class="bigpct">${fmtPct(P[best])}%</span>${brainSVG('brain', 'happy', avatarColor())}</div>
       <div class="bar"><i style="width:${Math.max(3, best / 30 * 100)}%"></i></div>
       <div class="muted">${best ? `Tylko ${fmtPct(P[best])}% graczy dotarło tak daleko jak Ty.` : 'Zaczynasz od 100% graczy. Na poziomie 30 zostaje tylko 1%.'}</div>
       <button class="btn primary" id="play">${ic('play')} Graj: 30 poziomów</button>
@@ -1497,7 +1649,7 @@ function home() {
       <div class="eyebrow">Masz kod wyzwania od znajomego?</div>
       <form class="code" id="codef"><input id="code" placeholder="c-abc123-n-12-…" autocomplete="off" aria-label="Kod wyzwania"><button class="btn primary sm" type="submit">Otwórz</button></form>
     </section>
-    <p class="foot">Prototyp 1% Club. Procenty graczy i ranking globalny są symulowane, Twój postęp zapisuje się na tym urządzeniu.</p>
+    <p class="foot">1% Club · procent graczy przy poziomach jest szacunkowy. Rankingi zawierają tylko prawdziwe wyniki.</p>
   </div>`;
   $('#play').onclick = () => startRun({ mode: S.mode });
   $('#snd').onclick = () => { S.sound = !S.sound; save(); $('#snd').innerHTML = ic(S.sound ? 'sound' : 'mute'); if (S.sound) sfx('tap'); };
@@ -1535,7 +1687,7 @@ function home() {
 
 /* ---------- start ---------- */
 function boot() {
-  home();
+  playerId(); home(); flushOutbox(); addEventListener('online', flushOutbox);
   const c = parseToken(location.hash);
   if (c) openChallenge(c);
 }
