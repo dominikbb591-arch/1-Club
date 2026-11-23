@@ -15,7 +15,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&family=Cinzel:wght@700;900&display=swap">
 <style>
 /* Layout: one phone-width column; home is a stack of cards, the game is a full-height stage with a 30-rung ladder on top.
    Single deliberate dark look (night-show studio): ink black, warm paper panels for puzzles, signal yellow accent. */
@@ -375,6 +375,77 @@ body.quake #app{animation:quake .5s}
 .abtns .btn svg{width:46px;height:46px}
 .rotsrc{background:#fff;border:2.5px solid var(--paper-ink);border-radius:18px;padding:10px;width:min(40%,150px)}
 .rotsrc svg{width:100%;height:auto}
+
+/* ---------- sekretna wieża ---------- */
+.kspot{position:relative;height:118px;overflow:hidden;margin:-6px 0 -8px}
+.knight{position:absolute;left:6px;bottom:-130px;width:96px;height:104px;transition:bottom .8s cubic-bezier(.3,1.5,.5,1)}
+.knight.up{bottom:0}
+.knight svg,.dfk svg{width:100%;height:100%;overflow:visible}
+.knight.up .kn-pupils{animation:look 3.2s ease-in-out infinite}
+.knight.up .kn-head{animation:tilt 3.2s ease-in-out infinite;transform-origin:57px 70px}
+.knight.up .kn-sword{animation:swordbob 2.4s ease-in-out infinite;transform-origin:99px 100px}
+@keyframes look{0%,15%{transform:translateX(0)}25%,45%{transform:translateX(-3.5px)}55%,75%{transform:translateX(3.5px)}85%,100%{transform:translateX(0)}}
+@keyframes tilt{0%,15%{transform:rotate(0)}25%,45%{transform:rotate(-6deg)}55%,75%{transform:rotate(6deg)}85%,100%{transform:rotate(0)}}
+@keyframes swordbob{50%{transform:rotate(-5deg)}}
+.kn-scene .kn-pupils{animation:look 3.6s ease-in-out infinite}
+.kn-scene .kn-head{animation:tilt 3.6s ease-in-out infinite;transform-origin:57px 70px;transform-box:view-box}
+#app{transition:transform .55s cubic-bezier(.7,0,.3,1)}
+#app.slide-away{transform:translateX(100%)}
+body.towering{overflow:hidden}
+.tower{position:fixed;inset:0;z-index:60;background:linear-gradient(#07071a,#1b1435 60%,#2a1a3a);transition:transform .55s cubic-bezier(.7,0,.3,1),opacity .4s;overflow:hidden}
+.tower.enter{transform:translateX(-100%)}
+.tower.fadein{animation:fade .4s ease}
+.tower.zoomin .tw-svg{transform:scale(4);transform-origin:54% 74%;opacity:0;transition:transform .75s ease-in,opacity .75s ease-in}
+.tw-svg{width:100%;height:100%;display:block}
+.tw-star{animation:twinkle 2.6s ease-in-out infinite}
+@keyframes twinkle{50%{opacity:.15}}
+.tw-flick{animation:flick 1.3s ease-in-out infinite}.tw-flick.f2{animation-delay:.5s}
+.tw-win{animation:flickw 2.2s ease-in-out infinite}.tw-win.f2{animation-delay:.9s}
+@keyframes flick{50%{opacity:.45}}@keyframes flickw{40%{fill:#ffe48a}60%{fill:#ffb02e}}
+.tw-t1{font-family:var(--font-d);font-weight:800;font-size:14px;fill:#fff;text-anchor:middle}
+.tw-t2{font-weight:700;font-size:13px;fill:#d8d3ea;text-anchor:middle}
+.tw-t3{font-weight:700;font-size:11.5px;fill:#b9b5d2;text-anchor:middle}
+.tw-bt{font-family:var(--font-d);font-weight:800;font-size:13.5px;fill:#1d1600;text-anchor:middle}
+.tw-btn rect{fill:#ffd23f;stroke:#17161a;stroke-width:3}
+.tw-btn{cursor:pointer;animation:btnpulse 1.6s ease-in-out infinite;transform-origin:80px 610px;transform-box:view-box}
+.tw-btn.off{cursor:not-allowed;animation:none;opacity:.45}
+.tw-btn.off rect{fill:#8a8794}
+@keyframes btnpulse{50%{transform:scale(1.05)}}
+.tw-dim{opacity:.55}
+.tw-click{cursor:pointer}
+#tw-lock .tw-shackle{transition:transform .5s ease}
+#tw-lock.tw-opened .tw-shackle{transform:translateY(-12px) rotate(-28deg);transform-origin:150px 476px;transform-box:view-box}
+#tw-lock.tw-anim .tw-key{animation:keyin .8s ease forwards}
+@keyframes keyin{60%{transform:translateX(30px)}100%{transform:translateX(30px);opacity:0}}
+#tw-lock.tw-opened:not(.tw-anim) .tw-key{opacity:0}
+#tw-arrow{opacity:0;pointer-events:none;transition:opacity .5s}
+#tw-arrow.show{opacity:1;pointer-events:auto}
+#tw-arrow.show .tw-arrow-in{animation:arrowpoke 1s ease-in-out infinite}
+@keyframes arrowpoke{50%{transform:translateX(-12px)}}
+/* mroczne menu w wieży (dark fantasy) */
+body.df{--bg:#0b0607;--surface:#1a0f11;--surface2:#271619;--line:#45262a;--fg:#f1e7d3;--muted:#ad9a88;--accent:#d9a648;--accent-ink:#1c0e00;--font-d:'Cinzel','Times New Roman',serif;
+  background:radial-gradient(120% 60% at 50% 0%,#3a0d12 0%,#0b0607 60%) fixed,#0b0607}
+body.df .hero,body.df .card,body.df .tilebtn,body.df .cat,body.df .seg{border:1px solid #4a2a20;box-shadow:inset 0 0 0 1px rgba(217,166,72,.08),0 6px 18px rgba(0,0,0,.45)}
+body.df .hero{background:linear-gradient(180deg,#22110f,#140a0b)}
+body.df .hero h1{font-family:'Cinzel',serif;font-weight:900;font-size:36px;letter-spacing:.04em;background:linear-gradient(#ffe2a0,#b9822f);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+body.df .tag{background:#4a0f15;color:#ffcf8a}
+body.df .btn.primary{background:linear-gradient(180deg,#e9bd63,#a8701f);color:#1c0e00;box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+body.df .btn.dm{background:linear-gradient(135deg,#6e0f18,#c2361d)}
+body.df .df-prev{background:#140a0c;height:170px}
+body.df .df-prev svg{width:100%;height:100%}
+.df-logo{font-family:'Cinzel',serif;font-weight:900;letter-spacing:.12em;color:var(--accent)}
+.dfk{width:46px;height:50px;flex:none;animation:in .4s ease}
+.dfk .kn-pupils{animation:look 3.2s ease-in-out infinite}
+.df-drg{animation:dfly 7s ease-in-out infinite}
+@keyframes dfly{0%{transform:translate(-30px,6px)}50%{transform:translate(30px,-8px)}100%{transform:translate(-30px,6px)}}
+.df-wing,.df-wing2{transform-box:fill-box;transform-origin:100% 100%;animation:flap .7s ease-in-out infinite}
+.df-wing2{transform-origin:0% 100%}
+@keyframes flap{50%{transform:scaleY(.45)}}
+.df-fire{animation:fire 3.5s ease-in-out infinite;transform-box:fill-box;transform-origin:0 50%}
+@keyframes fire{0%,60%,100%{opacity:0;transform:scaleX(.2)}70%,85%{opacity:1;transform:scaleX(1)}}
+.df-ember{animation:ember 4s linear infinite}
+@keyframes ember{0%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(-90px);opacity:0}}
+@media (prefers-reduced-motion:reduce){.tw-star,.df-drg,.df-wing,.df-wing2,.df-ember,.tw-btn{animation:none}}
 </style>
 
 </head>
@@ -389,7 +460,7 @@ body.quake #app{animation:quake .5s}
    (seed), więc każda ma jedną poprawną odpowiedź, a znajomy
    z linkiem dostaje identyczną rozgrywkę.
    ========================================================= */
-const APP_VERSION = '2.2';
+const APP_VERSION = '2.3';
 const PUBLIC_URL = 'https://claude.ai/artifact/Fx4EbzcJ1xnezqSifC6uTC'; // uzupełniane po publikacji (link do gry)
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -440,7 +511,7 @@ const COL_PLURAL = { red: 'CZERWONE', blue: 'NIEBIESKIE', green: 'ZIELONE', yell
 /* ---------- stan ---------- */
 const KEY = 'onepct-club-v1';
 const defState = () => ({ name: '', mode: 'normal', sound: true, xp: 0, games: 0, best: { level: 0, score: 0 }, bestBy: { easy: 0, normal: 0, expert: 0 }, today: { date: '', level: 0, score: 0 }, streak: { count: 0, last: '', max: 0 }, daily: {}, history: [], badges: [], bestReact: 0,
-  pid: '', avatar: 0, totalRun: 0, weekPts: {}, dayBest: {}, dailyPts: {}, catStats: {}, levelsPassed: 0, dailyDone: 0, trainBest: {}, outbox: [], dm: { w: 0, l: 0, best: 0, games: 0 }, coins: 0, coinLog: [], rwClaimed: {}, rwSince: '', rwPending: [] });
+  pid: '', avatar: 0, totalRun: 0, weekPts: {}, dayBest: {}, dailyPts: {}, catStats: {}, levelsPassed: 0, dailyDone: 0, trainBest: {}, outbox: [], dm: { w: 0, l: 0, best: 0, games: 0 }, coins: 0, coinLog: [], rwClaimed: {}, rwSince: '', rwPending: [], tower: false });
 let S = load();
 function load() { try { const r = JSON.parse(localStorage.getItem(KEY) || 'null'); return Object.assign(defState(), r || {}); } catch (e) { return defState(); } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
@@ -1946,16 +2017,16 @@ function home() {
   const best = S.best.level, st = streakNow(), ds = S.daily[today()] || { r: [null, null, null, null, null], bonus: null };
   const dDone = ds.r.filter(v => v !== null).length;
   leaveGame(); app.innerHTML = `<div class="screen">
-    <div class="topbar"><div class="logo">${logoSVG()}<span>CLUB</span></div><div class="sp"></div>
+    <div class="topbar">${TOWER_IN ? `<button class="dfk" id="dfk" aria-label="Wyjdź z wieży">${knightSVG()}</button><div class="logo df-logo">WIEŻA</div>` : `<div class="logo">${logoSVG()}<span>CLUB</span></div>`}<div class="sp"></div>
       <span class="pill" title="Seria dni" style="color:${st ? 'var(--accent)' : 'var(--muted)'}">${ic('flame')}<span class="num">${st}</span></span>
       <button class="pill coinpill" id="coins" title="Monety" aria-label="Monety">${coinSVG(18)}<span class="num">${S.coins || 0}</span></button>
       <button class="iconbtn" id="snd" aria-label="Dźwięk">${ic(S.sound ? 'sound' : 'mute')}</button>
       <button class="pill" id="prof" aria-label="Profil" style="min-height:40px;border-radius:12px">${ic('user')}<span class="num">${playerLevel()}</span></button></div>
 
     <section class="hero">
-      <div class="row"><h1>1% CLUB</h1><div class="sp"></div><span class="tag">BETA</span></div>
-      <div style="font-size:19px;margin-top:-6px">Czy Twój mózg jest w top 1%?</div>
-      <div class="preview">${previewSVG()}</div>
+      <div class="row"><h1>${TOWER_IN ? 'Wieża 1%' : '1% CLUB'}</h1><div class="sp"></div><span class="tag">${TOWER_IN ? 'SEKRET' : 'BETA'}</span></div>
+      <div style="font-size:19px;margin-top:-6px">${TOWER_IN ? 'Tu wchodzą tylko najodważniejsze umysły.' : 'Czy Twój mózg jest w top 1%?'}</div>
+      ${TOWER_IN ? `<div class="preview df-prev">${dragonSVG()}</div>` : `<div class="preview">${previewSVG()}</div>`}
       <div class="row"><div><div class="eyebrow">${best ? 'Twój rekord' : 'Start'}</div><div style="font-family:var(--font-d);font-size:20px;font-weight:800;white-space:nowrap">Poziom ${best}/30</div></div><div class="sp"></div><span class="bigpct">${fmtPct(P[best])}%</span>${brainSVG('brain', 'happy', avatarColor())}</div>
       <div class="bar"><i style="width:${Math.max(3, best / 30 * 100)}%"></i></div>
       <div class="muted">${best ? `Tylko ${fmtPct(P[best])}% graczy dotarło tak daleko jak Ty.` : 'Zaczynasz od 100% graczy. Na poziomie 30 zostaje tylko 1%.'}</div>
@@ -1984,13 +2055,17 @@ function home() {
       <div class="eyebrow">Masz kod wyzwania od znajomego?</div>
       <form class="code" id="codef"><input id="code" placeholder="c-abc123-n-12-…" autocomplete="off" aria-label="Kod wyzwania"><button class="btn primary sm" type="submit">Otwórz</button></form>
     </section>
-    <p class="foot">1% Club · procent graczy przy poziomach jest szacunkowy. Rankingi zawierają tylko prawdziwe wyniki.<br>Wersja ${APP_VERSION}</p>
+    <p class="foot">${TOWER_IN ? 'Wieża 1% · Aby wyjść, kliknij rycerza w lewym górnym rogu.' : '1% Club · procent graczy przy poziomach jest szacunkowy. Rankingi zawierają tylko prawdziwe wyniki.'}<br>Wersja ${APP_VERSION}</p>
+    ${TOWER_IN ? '' : `<div class="kspot" id="kspot"><button class="knight" id="knight" aria-label="Tajemniczy rycerz">${knightSVG()}</button></div>`}
   </div>`;
   $('#play').onclick = () => startRun({ mode: S.mode });
   $('#dm').onclick = dmLobby;
   $('#snd').onclick = () => { S.sound = !S.sound; save(); $('#snd').innerHTML = ic(S.sound ? 'sound' : 'mute'); if (S.sound) sfx('tap'); };
   $('#prof').onclick = profileScreen;
   $('#coins').onclick = coinsSheet;
+  document.body.classList.toggle('df', TOWER_IN);
+  if (TOWER_IN) $('#dfk').onclick = () => { TOWER_IN = false; document.body.classList.remove('df'); openTower(false); };
+  else armKnight();
   $$('[data-m]').forEach(b => b.onclick = () => { S.mode = b.dataset.m; save(); $$('[data-m]').forEach(x => x.setAttribute('aria-pressed', x === b)); $('#mdesc').textContent = MODES[S.mode].desc; });
   $('#daily').onclick = dailyScreen;
   $$('[data-c]').forEach(b => b.onclick = () => trainPick(b.dataset.c));
@@ -2439,6 +2514,175 @@ function coinsSheet() {
     ${log.length ? `<div class="eyebrow" style="text-align:left">Ostatnio zdobyte</div><div class="list" style="text-align:left">${log.map(x => `<div class="lrow"><span class="rk">${coinSVG(20)}</span><span class="nm" style="font-size:13px;white-space:normal">${esc(x.why || '')}</span><span class="sc" style="color:var(--accent)">+${x.n}</span></div>`).join('')}</div>` : ''}
     <button class="btn primary" id="co-ok" style="width:100%">OK</button>`);
   $('#co-ok', o).onclick = closeOverlay;
+}
+
+/* =========================================================
+   SEKRETNA WIEŻA (v2.3)
+   Rycerz-mózg wyłania się na dole ekranu głównego. Kliknięcie
+   przesuwa ekran i pokazuje scenę z wieżą. Kłódka: poziom 10
+   i 50 monet (raz). Po otwarciu zielona strzałka prowadzi do
+   wnętrza wieży: to samo menu w stylu dark fantasy.
+   ========================================================= */
+let TOWER_IN = false;
+const TOWER_COST = 50, TOWER_LVL = 10;
+function knightSVG(cls = 'knight-svg') {
+  return `<svg class="${cls}" viewBox="0 0 120 130" aria-hidden="true">
+    <g class="kn-body">
+      <ellipse cx="58" cy="124" rx="30" ry="4" fill="#000" opacity=".35"/>
+      <path d="M46 104v16M66 104v16" stroke="#6b6f7d" stroke-width="7" stroke-linecap="round"/>
+      <path d="M40 121h12M60 121h12" stroke="#3a3d47" stroke-width="5" stroke-linecap="round"/>
+      <g class="kn-sword">
+        <path d="M95 30 99 92" stroke="#dfe5ec" stroke-width="6" stroke-linecap="round"/>
+        <path d="M95.6 34 98 86" stroke="#fff" stroke-width="1.6" opacity=".8"/>
+        <path d="M86 92h24" stroke="#c98a4b" stroke-width="5" stroke-linecap="round"/>
+        <path d="M99 94v10" stroke="#7a4a1f" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="99.3" cy="107" r="3.4" fill="#ffd23f"/>
+      </g>
+      <path d="M16 70c-9-2-12-14-5-21-3-10 6-19 15-16 3-9 15-11 21-5 6-6 18-5 21 3 9-3 18 5 15 14 8 5 7 18-2 21 3 10-6 18-15 15-4 8-16 9-21 3-6 6-18 4-20-4-9 1-14-6-9-10z" fill="#ffb3c7" stroke="#17161a" stroke-width="3"/>
+      <path d="M30 86c5 3 10 1 12-3M62 88c5 2 9-1 10-5" stroke="#d4708e" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      <g class="kn-head">
+        <path d="M20 54c0-24 17-38 37-38s37 14 37 38v6H20z" fill="#9aa1ad" stroke="#17161a" stroke-width="3"/>
+        <path d="M30 40c4-12 14-19 27-19" stroke="#fff" stroke-width="3" opacity=".45" fill="none" stroke-linecap="round"/>
+        <path d="M57 16v44" stroke="#6b6f7d" stroke-width="3"/>
+        <path d="M54 16c-2-10 6-16 14-14 10 2 14 12 10 20-4-6-12-8-18-4z" fill="#d9363e" stroke="#17161a" stroke-width="2.5" class="kn-plume"/>
+        <rect x="20" y="56" width="74" height="9" rx="3" fill="#6b6f7d" stroke="#17161a" stroke-width="3"/>
+        <g class="kn-eyes"><circle cx="45" cy="74" r="6" fill="#fff" stroke="#17161a" stroke-width="2.4"/><circle cx="70" cy="74" r="6" fill="#fff" stroke="#17161a" stroke-width="2.4"/>
+          <g class="kn-pupils"><circle cx="46" cy="75" r="3" fill="#17161a"/><circle cx="71" cy="75" r="3" fill="#17161a"/></g></g>
+        <path d="M51 85c4 3 9 3 13 0" stroke="#17161a" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+      </g>
+      <path d="M94 64c4 4 6 10 4 16" stroke="#ffb3c7" stroke-width="7" stroke-linecap="round" fill="none"/>
+      <path d="M94 64c4 4 6 10 4 16" stroke="#17161a" stroke-width="2" stroke-linecap="round" fill="none" opacity=".25"/>
+    </g>
+  </svg>`;
+}
+// obserwator: rycerz wychodzi, gdy dół ekranu głównego jest widoczny
+function armKnight() {
+  const spot = $('#kspot'), k = $('#knight'); if (!spot || !k) return;
+  k.onclick = () => { sfx('tap'); openTower(true); };
+  if (!('IntersectionObserver' in window)) { k.classList.add('up'); return; }
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (!document.body.contains(spot)) return io.disconnect();
+    k.classList.toggle('up', e.intersectionRatio > .6);
+  }), { threshold: [0, .6, 1] });
+  io.observe(spot);
+}
+
+function towerSceneSVG(st) {
+  const stars = range(46).map(i => { const r = RNG(hashStr('st' + i)); return `<circle cx="${r.range(4, 386)}" cy="${r.range(6, 420)}" r="${(r() * 1.4 + .4).toFixed(1)}" fill="#fff" class="tw-star" style="animation-delay:${(r() * 3).toFixed(1)}s;opacity:${(r() * .6 + .3).toFixed(2)}"/>`; }).join('');
+  const cloud = (x, y, s, d, dx) => `<g transform="translate(${x} ${y}) scale(${s})"><g><animateTransform attributeName="transform" type="translate" values="0 0; ${dx} 0; 0 0" dur="${d}s" repeatCount="indefinite"/>
+      <path d="M10 40c-12 0-14-18-2-20 0-14 20-18 26-6 6-12 28-10 30 4 14-2 18 20 4 22z" fill="#ece8f6" opacity=".95"/><path d="M14 40h54" stroke="#bdb6d4" stroke-width="3" stroke-linecap="round" opacity=".6"/></g></g>`;
+  const lvlOk = playerLevel() >= TOWER_LVL, coinsOk = (S.coins || 0) >= TOWER_COST, open = !!S.tower;
+  let panel;
+  if (open) panel = `<text x="84" y="590" class="tw-t1">Wieża otwarta!</text><text x="84" y="612" class="tw-t2">Wejdź przez strzałkę</text>`;
+  else if (!lvlOk) panel = `<text x="84" y="582" class="tw-t1">Zamknięte</text><text x="84" y="604" class="tw-t2">Wróć, gdy osiągniesz</text><text x="84" y="622" class="tw-t2">${TOWER_LVL}. poziom gracza</text><text x="84" y="644" class="tw-t3">(teraz: poziom ${playerLevel()})</text>`;
+  else panel = `<text x="84" y="574" class="tw-t1">Odblokuj kłódkę</text>
+    <g id="tw-buy" class="tw-btn ${coinsOk ? '' : 'off'}" role="button" aria-disabled="${!coinsOk}"><rect x="20" y="588" width="128" height="44" rx="14"/>
+      <g transform="translate(30 599)"><circle cx="11" cy="11" r="11" fill="#c98a12"/><circle cx="11" cy="10" r="9.5" fill="#ffd23f"/><path d="M9.4 7.4 11.8 6.2v7.6" stroke="#a36a00" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+      <text x="98" y="615" class="tw-bt">50 monet</text></g>
+    <text x="84" y="652" class="tw-t3">${coinsOk ? `Masz ${S.coins} monet` : `Masz ${S.coins || 0} z ${TOWER_COST} monet`}</text>`;
+  return `<svg class="tw-svg" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <linearGradient id="twsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#07071a"/><stop offset=".6" stop-color="#1b1435"/><stop offset="1" stop-color="#2a1a3a"/></linearGradient>
+    <linearGradient id="twstone" x1="0" x2="1"><stop offset="0" stop-color="#8a8f9c"/><stop offset=".55" stop-color="#6b6f7d"/><stop offset="1" stop-color="#4b4e59"/></linearGradient>
+    <linearGradient id="twroof" x1="0" x2="1"><stop offset="0" stop-color="#ff5a4e"/><stop offset=".6" stop-color="#d9363e"/><stop offset="1" stop-color="#8f1d25"/></linearGradient>
+    <radialGradient id="twglow"><stop offset="0" stop-color="#ffd23f" stop-opacity=".7"/><stop offset="1" stop-color="#ffd23f" stop-opacity="0"/></radialGradient>
+    <linearGradient id="twhill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f7d47"/><stop offset="1" stop-color="#123020"/></linearGradient>
+  </defs>
+  <rect width="390" height="844" fill="url(#twsky)"/>
+  ${stars}
+  <circle cx="330" cy="92" r="30" fill="#fff6d8"/><circle cx="342" cy="84" r="30" fill="#1b1435" opacity=".0"/><circle cx="320" cy="84" r="5" fill="#e8dcb6"/><circle cx="338" cy="104" r="7" fill="#e8dcb6"/>
+  ${cloud(28, 170, 1.7, 16, 40)}${cloud(220, 270, 1.6, 21, -46)}${cloud(150, 120, .9, 26, 30)}
+  <path d="M-10 690C40 650 120 628 200 626S330 640 400 690V844H-10z" fill="url(#twhill)"/>
+  <path d="M-10 690C40 650 120 628 200 626S330 640 400 690" fill="none" stroke="#3fdc7c" stroke-width="5" stroke-linecap="round"/>
+  <g stroke="#3fdc7c" stroke-width="3.5" stroke-linecap="round"><path d="M44 662l-6-14M44 662l2-15M44 662l9-11"/><path d="M268 640l-5-12M268 640l2-13M268 640l8-10"/><path d="M120 640l-4-10M120 640l5-9"/></g>
+  <path d="M206 650c-12 20 14 32 2 54s-40 26-26 56 66 28 86 50l30 40H246c-24-26-80-24-96-58s14-46 24-62-6-28 6-80z" fill="#c98a4b" opacity=".95"/>
+  <g fill="#7a4a1f">${[[200, 672], [194, 702], [178, 736], [192, 770], [228, 792], [262, 812], [210, 820], [168, 778]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3"/>`).join('')}</g>
+  <g id="tw-tower" class="${open ? 'tw-click' : ''}">
+    <rect x="166" y="340" width="88" height="312" fill="url(#twstone)" stroke="#17161a" stroke-width="3"/>
+    <g stroke="#3e414b" stroke-width="2" opacity=".55">${range(12).map(i => `<path d="M166 ${370 + i * 24}h88"/><path d="M${i % 2 ? 196 : 212} ${346 + i * 24}v24M${i % 2 ? 232 : 182} ${346 + i * 24}v24"/>`).join('')}</g>
+    <path d="M158 330h104v18H158z" fill="#5a5d68" stroke="#17161a" stroke-width="3"/>
+    <path d="M152 332 210 196 268 332z" fill="url(#twroof)" stroke="#17161a" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M210 196v-24" stroke="#17161a" stroke-width="3"/><path d="M210 172l22 7-22 7z" fill="#ffd23f" stroke="#17161a" stroke-width="2"><animate attributeName="d" values="M210 172l22 7-22 7z;M210 172l20 4-20 10z;M210 172l22 7-22 7z" dur="1.6s" repeatCount="indefinite"/></path>
+    <circle cx="210" cy="420" r="34" fill="url(#twglow)" class="tw-flick"/><circle cx="210" cy="510" r="34" fill="url(#twglow)" class="tw-flick f2"/>
+    <path d="M198 432v-20a12 12 0 0 1 24 0v20z" fill="#ffd23f" stroke="#17161a" stroke-width="3" class="tw-win"/>
+    <path d="M198 522v-20a12 12 0 0 1 24 0v20z" fill="#ffb02e" stroke="#17161a" stroke-width="3" class="tw-win f2"/>
+    <path d="M192 652v-34a18 18 0 0 1 36 0v34z" fill="#7a4a1f" stroke="#17161a" stroke-width="3"/>
+    <path d="M210 604v48M199 616v36M221 616v36" stroke="#5a3414" stroke-width="2"/><circle cx="222" cy="634" r="2.6" fill="#ffd23f"/>
+  </g>
+  <g transform="translate(-6 -78)"><g id="tw-lock" class="${open ? 'tw-opened' : ''} ${lvlOk ? '' : 'tw-dim'}">
+    <animateTransform attributeName="transform" type="translate" values="0 0; 0 -9; 0 0" dur="3s" repeatCount="indefinite"/>
+    <g class="tw-key">
+      <circle cx="44" cy="488" r="15" fill="none" stroke="#ffd23f" stroke-width="8"/><path d="M58 488h44M92 488v14M82 488v10" stroke="#ffd23f" stroke-width="8" stroke-linecap="round"/>
+      <circle cx="44" cy="488" r="15" fill="none" stroke="#a36a00" stroke-width="2" opacity=".5"/>
+    </g>
+    <g class="tw-pad">
+      <path class="tw-shackle" d="M118 476v-16a16 16 0 0 1 32 0v16" fill="none" stroke="#cfd6de" stroke-width="7" stroke-linecap="round"/>
+      <rect x="108" y="474" width="52" height="46" rx="9" fill="#ffd23f" stroke="#17161a" stroke-width="3"/>
+      <rect x="112" y="478" width="10" height="38" rx="4" fill="#fff" opacity=".35"/>
+      <circle cx="134" cy="494" r="6" fill="#17161a"/><path d="M134 496v12" stroke="#17161a" stroke-width="5" stroke-linecap="round"/>
+    </g>
+  </g>
+  <g id="tw-panel">${panel}</g></g>
+  <g id="tw-arrow" class="tw-click ${open ? 'show' : ''}" role="button" aria-label="Wejdź do wieży">
+    <g class="tw-arrow-in"><path d="M268 486 316 440v26h52v40h-52v26z" fill="#2fd16b" stroke="#0e5c2a" stroke-width="4" stroke-linejoin="round"/><path d="M280 486 314 452" stroke="#bff7d2" stroke-width="4" stroke-linecap="round" opacity=".7"/></g>
+  </g>
+  <g id="tw-knight" class="tw-click" transform="translate(286 560) scale(.86)">${knightSVG('kn-scene').replace('<svg class="kn-scene" viewBox="0 0 120 130" aria-hidden="true">', '<svg class="kn-scene" viewBox="0 0 120 130" width="120" height="130">')}</g>
+  <text x="195" y="836" class="tw-t3" style="font-size:11px">Kliknij rycerza, aby wrócić</text>
+</svg>`;
+}
+function openTower(slide) {
+  closeOverlay();
+  const old = $('#tower'); if (old) old.remove();
+  const sc = document.createElement('div'); sc.id = 'tower'; sc.className = 'tower' + (slide ? ' enter' : ' fadein');
+  sc.innerHTML = towerSceneSVG();
+  document.body.appendChild(sc); document.body.classList.add('towering');
+  if (slide) { app.classList.add('slide-away'); requestAnimationFrame(() => requestAnimationFrame(() => sc.classList.remove('enter'))); }
+  wireTower(sc);
+}
+function wireTower(sc) {
+  $('#tw-knight', sc).addEventListener('click', () => closeTower());
+  const buy = $('#tw-buy', sc);
+  if (buy) buy.addEventListener('click', () => {
+    if (S.tower || (S.coins || 0) < TOWER_COST || playerLevel() < TOWER_LVL) { sfx('bad'); return; }
+    S.coins -= TOWER_COST; S.tower = true;
+    S.coinLog = [{ n: -TOWER_COST, why: 'Otwarcie kłódki wieży', ts: Date.now() }].concat(S.coinLog || []).slice(0, 30);
+    save(); sfx('win');
+    $('#tw-lock', sc).classList.add('tw-opened', 'tw-anim');
+    $('#tw-panel', sc).innerHTML = `<text x="84" y="590" class="tw-t1">Wieża otwarta!</text><text x="84" y="612" class="tw-t2">Wejdź przez strzałkę</text><text x="84" y="634" class="tw-t3">-50 monet · zostało ${S.coins}</text>`;
+    setTimeout(() => { $('#tw-arrow', sc).classList.add('show'); $('#tw-tower', sc).classList.add('tw-click'); }, 900);
+  });
+  const enter = () => { if (!S.tower) return; sfx('go'); sc.classList.add('zoomin'); setTimeout(() => { TOWER_IN = true; sc.remove(); document.body.classList.remove('towering'); app.classList.remove('slide-away'); home(); }, 750); };
+  $('#tw-arrow', sc).addEventListener('click', enter);
+  $('#tw-tower', sc).addEventListener('click', enter);
+}
+function closeTower() {
+  const sc = $('#tower'); if (!sc) return;
+  sfx('tap'); TOWER_IN = false;
+  home();
+  app.classList.add('slide-away');
+  requestAnimationFrame(() => requestAnimationFrame(() => { sc.classList.add('enter'); app.classList.remove('slide-away'); }));
+  setTimeout(() => { sc.remove(); document.body.classList.remove('towering'); }, 560);
+}
+// mroczne menu: smok nad wieżą
+function dragonSVG() {
+  return `<svg viewBox="0 0 360 170" class="df-dragon" aria-hidden="true">
+    <defs><radialGradient id="dfmoon"><stop offset="0" stop-color="#ffcf8a"/><stop offset="1" stop-color="#a3401f"/></radialGradient></defs>
+    <rect width="360" height="170" fill="#140a0c"/>
+    <circle cx="270" cy="62" r="40" fill="url(#dfmoon)" opacity=".85"/>
+    <path d="M0 170V120l20-6 14 10 26-22 22 16 30-30 26 20 24-12 30 26 26-18 30 20 26-14 30 18 30-10 26 12v50z" fill="#0a0506"/>
+    <g class="df-castle" fill="#0d0708"><path d="M40 170v-58h8v-8h6v8h8v-8h6v8h8v58z"/><path d="M300 170v-74h7v-9h6v9h7v-9h6v9h7v74z"/></g>
+    <circle cx="61" cy="130" r="2.5" fill="#ff8a1f" class="tw-flick"/><circle cx="316" cy="110" r="2.5" fill="#ff8a1f" class="tw-flick f2"/>
+    <g class="df-drg"><g transform="translate(150 70)">
+      <path class="df-wing" d="M10 0C-10-34-46-44-70-36-52-30-46-18-50-8-36-14-26-10-20 0z" fill="#3a0d12" stroke="#d4a24c" stroke-width="1.4"/>
+      <path d="M-24 6C-8-4 22-6 40 0s26 4 34-2c-4 10-14 14-26 14 6 6 4 14-4 18 0-8-6-12-14-12-14 0-28 2-40 0-10-2-18-8-14-12z" fill="#4a1016" stroke="#d4a24c" stroke-width="1.4"/>
+      <path d="M-24 8C-40 10-52 22-74 22c10-4 16-10 18-16" fill="none" stroke="#4a1016" stroke-width="5" stroke-linecap="round"/>
+      <path d="M70 0l14-8-4 10 10 2-12 4" fill="#4a1016" stroke="#d4a24c" stroke-width="1.2"/>
+      <circle cx="74" cy="0" r="1.8" fill="#ffd23f"/>
+      <path class="df-wing2" d="M14 2C10-30 30-52 56-58-48-44-40-30-34-20-26-24-14-16-6 2z" fill="#5a1219" stroke="#d4a24c" stroke-width="1.4"/>
+      <g class="df-fire"><path d="M90 6c14-2 26 4 40 0-8 6-18 10-30 10 10 2 18 0 26-2-10 8-24 10-36 4z" fill="#ff8a1f"/><path d="M92 8c10 0 18 2 26 0-8 4-16 6-24 4z" fill="#ffd23f"/></g>
+    </g></g>
+    ${range(10).map(i => { const r = RNG(hashStr('em' + i)); return `<circle cx="${r.range(10, 350)}" cy="${r.range(100, 168)}" r="${(r() * 1.6 + .6).toFixed(1)}" fill="#ff8a1f" class="df-ember" style="animation-delay:${(r() * 4).toFixed(1)}s"/>`; }).join('')}
+  </svg>`;
 }
 
 /* ---------- blokada zoomu: gra działa jak aplikacja ---------- */
