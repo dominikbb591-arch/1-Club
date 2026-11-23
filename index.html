@@ -336,6 +336,45 @@ body.quake #app{animation:quake .5s}
 .prizes{gap:10px;padding:12px 14px;background:linear-gradient(90deg,rgba(255,210,63,.12),var(--surface))}
 .coinburst{display:grid;place-items:center;animation:coinspin 1s ease-out}
 @keyframes coinspin{from{transform:rotateY(540deg) scale(.4)}to{transform:none}}
+.prizebtn{min-height:40px;border-radius:12px;color:var(--accent)}
+.prizes{width:100%;color:var(--fg)}
+.big-trophy{width:56px;height:56px;color:var(--accent)}
+.ptable-wrap{border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+.ptable{width:100%;border-collapse:collapse;font-size:14px}
+.ptable th,.ptable td{padding:10px 6px;text-align:center}
+.ptable thead th{background:var(--surface2);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:800;line-height:1.25}
+.ptable tbody tr{border-top:1px solid var(--line)}
+.ptable tbody th{text-align:left;font-weight:800;white-space:nowrap}
+.ptable .pl{display:inline-flex;align-items:center;gap:6px}.ptable .md{font-size:18px}
+.ptable .pv{display:inline-flex;align-items:center;gap:4px}.ptable .pv b{font-size:15px}
+.ptable tr.top1{background:linear-gradient(90deg,rgba(255,210,63,.16),transparent)}
+.ptable tr.top2{background:linear-gradient(90deg,rgba(207,214,222,.10),transparent)}
+.ptable tr.top3{background:linear-gradient(90deg,rgba(201,138,75,.12),transparent)}
+.ptable .hl{box-shadow:inset 0 0 0 999px rgba(255,210,63,.07)}
+.ptable thead th.hl{color:var(--accent)}
+.mset{display:grid;gap:10px;width:min(100%,330px)}
+.mset div{background:#fff;border:2.5px solid var(--paper-ink);border-radius:14px;aspect-ratio:1;display:grid;place-items:center;padding:8px}
+.mset svg{width:100%;height:100%}
+.mset.sm{width:min(70%,230px);gap:6px;opacity:.9}.mset.sm div{border-width:2px;border-radius:10px;padding:5px}
+.scales{display:flex;flex-direction:column;gap:8px;width:min(100%,340px)}
+.scale{display:flex;flex-direction:column;align-items:center}
+.scale .pans{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;width:100%;gap:6px}
+.scale .pan{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;min-height:26px;align-items:flex-end}
+.scale .pan.q{font-family:var(--font-m);font-weight:800;font-size:18px;align-items:center;gap:6px}
+.scale .pan.q b{font-size:22px;background:var(--paper-ink);color:var(--accent);border-radius:8px;padding:0 8px}
+.scale .eq{font-weight:800;color:#8a836f}
+.scale .beam{width:100%;height:20px}
+.scale.ask{background:#fff;border:2.5px dashed var(--paper-ink);border-radius:14px;padding:6px 8px 2px}
+.ginstr b svg{vertical-align:-3px}
+.arrows{display:flex;flex-direction:column;align-items:center;gap:26px;width:100%}
+.arow{display:flex;gap:4px;justify-content:center;min-height:64px;align-items:center}
+.arow .arw{width:min(15vw,62px);height:min(15vw,62px)}
+.arow .arw:nth-child(3){width:min(17vw,70px);height:min(17vw,70px)}
+.abtns{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(100%,330px)}
+.abtns .btn{min-height:84px;background:var(--paper-ink);color:var(--accent);border-radius:18px}
+.abtns .btn svg{width:46px;height:46px}
+.rotsrc{background:#fff;border:2.5px solid var(--paper-ink);border-radius:18px;padding:10px;width:min(40%,150px)}
+.rotsrc svg{width:100%;height:auto}
 </style>
 
 </head>
@@ -350,7 +389,7 @@ body.quake #app{animation:quake .5s}
    (seed), więc każda ma jedną poprawną odpowiedź, a znajomy
    z linkiem dostaje identyczną rozgrywkę.
    ========================================================= */
-const APP_VERSION = '2.1';
+const APP_VERSION = '2.2';
 const PUBLIC_URL = 'https://claude.ai/artifact/Fx4EbzcJ1xnezqSifC6uTC'; // uzupełniane po publikacji (link do gry)
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -381,9 +420,9 @@ const newSeed = () => Math.random().toString(36).slice(2, 10);
 const P = [100, 93, 89, 84, 76, 68, 62, 56, 50, 45, 40, 36, 32, 28, 24, 20, 17, 14, 12, 10.5, 9, 7.6, 6.2, 4.7, 3.9, 3.2, 2.6, 2.1, 1.7, 1.3, 1];
 const fmtPct = v => (v % 1 ? v.toFixed(1).replace('.', ',') : String(v));
 const MODES = {
-  easy: { label: 'Łatwy', desc: 'Więcej czasu na każdą zagadkę. Wynik ×0,7.', time: 1.5, react: 90, mult: 0.7, code: 'e' },
-  normal: { label: 'Normalny', desc: 'Standardowe limity czasu. Wynik ×1.', time: 1, react: 0, mult: 1, code: 'n' },
-  expert: { label: 'Ekspert', desc: 'Mniej czasu, ostrzejsze progi refleksu. Wynik ×1,5.', time: 0.72, react: -30, mult: 1.5, code: 'x' }
+  easy: { label: 'Łatwy', desc: 'Więcej czasu na każdą zagadkę. Punkty: 70% normalnych.', time: 1.5, react: 90, mult: 0.7, code: 'e' },
+  normal: { label: 'Normalny', desc: 'Standardowe limity czasu. Punkty: 100%.', time: 1, react: 0, mult: 1, code: 'n' },
+  expert: { label: 'Ekspert', desc: 'Mniej czasu, ostrzejsze progi refleksu. Punkty: 150%.', time: 0.72, react: -30, mult: 1.5, code: 'x' }
 };
 const MODE_BY_CODE = { e: 'easy', n: 'normal', x: 'expert' };
 const CATS = {
@@ -494,7 +533,21 @@ async function loadBoard(board) {
 }
 const PRIZES = { day: [5, 3, 2, 1, 1, 1, 1, 1, 1, 1], week: [50, 30, 20, 10, 10, 10, 10, 10, 10, 10], daily: [10, 5, 2] };
 const PRIZE_TXT = { day: 'Nagrody po końcu dnia: 1. miejsce +5, 2. +3, 3. +2, miejsca 4–10 +1 moneta.', week: 'Nagrody po końcu tygodnia (niedziela, północ): 1. miejsce +50, 2. +30, 3. +20, miejsca 4–10 +10 monet.', daily: 'Nagrody po końcu dnia: 1. miejsce +10, 2. +5, 3. +2 monety.' };
-const prizeCard = b => PRIZE_TXT[b] ? `<div class="card row prizes">${coinSVG(26)}<div style="font-size:13px">${PRIZE_TXT[b]}</div></div>` : '';
+const prizeCard = b => PRIZE_TXT[b] ? `<button class="card row prizes" data-prize="${b}">${coinSVG(26)}<div style="font-size:13px;text-align:left">${PRIZE_TXT[b]}</div><span class="muted" style="font-size:12px;white-space:nowrap">Tabela ›</span></button>` : '';
+function prizeSheet(hl) {
+  const rows = [['1', '🥇', 0], ['2', '🥈', 1], ['3', '🥉', 2], ['4–10', '', 3]];
+  const cell = (b, i) => { const v = (PRIZES[b] || [])[i]; return v ? `<td class="${hl === b ? 'hl' : ''}"><span class="pv">${coinSVG(16)}<b class="num">${v}</b></span></td>` : `<td class="${hl === b ? 'hl' : ''}"><span class="muted">–</span></td>`; };
+  const o = overlay(`<div class="coinburst">${ic('trophy', 'icon big-trophy')}</div>
+    <div class="big">Nagrody za ranking</div>
+    <p class="muted" style="margin:0;font-size:13px">Monety przychodzą automatycznie po zakończeniu rankingu: dziennego o północy, tygodniowego w nocy z niedzieli na poniedziałek (czas polski).</p>
+    <div class="ptable-wrap"><table class="ptable">
+      <thead><tr><th>Miejsce</th><th class="${hl === 'day' ? 'hl' : ''}">Dzień</th><th class="${hl === 'week' ? 'hl' : ''}">Tydzień</th><th class="${hl === 'daily' ? 'hl' : ''}">Wyzwania<br>dnia</th></tr></thead>
+      <tbody>${rows.map(([lab, md, i]) => `<tr class="${i < 3 ? 'top' + (i + 1) : ''}"><th><span class="pl">${md ? `<span class="md">${md}</span>` : ''}${lab}.</span></th>${cell('day', i)}${cell('week', i)}${cell('daily', i)}</tr>`).join('')}</tbody>
+    </table></div>
+    <div class="muted" style="font-size:12px;text-align:left;line-height:1.5"><b style="color:var(--fg)">Dzień</b>: najlepsza pojedyncza gra dnia · <b style="color:var(--fg)">Tydzień</b>: suma punktów od poniedziałku do niedzieli · <b style="color:var(--fg)">Wyzwania dnia</b>: suma punktów z 5 wyzwań i bonusu</div>
+    <button class="btn primary" id="pz-ok" style="width:100%">OK</button>`);
+  $('#pz-ok', o).onclick = closeOverlay;
+}
 const BOARDS = { day: { tab: 'Dzisiaj', title: 'Najlepsza gra dnia', unit: 'pkt w najlepszej grze', sub: r => `poziom ${r.level}` }, week: { tab: 'Tydzień', title: 'Suma punktów tygodnia', unit: 'pkt w tym tygodniu', sub: r => r.games ? `${r.games} gier` : 'pon–niedz' }, all: { tab: 'Ogółem', title: 'Suma wszystkich punktów', unit: 'pkt łącznie', sub: r => r.games ? `${r.games} gier` : `rekord: poz. ${r.level}` }, daily: { tab: 'Wyzwania', title: 'Wyzwania dnia: suma punktów', unit: 'pkt z wyzwań dnia', sub: r => r.games ? `${r.games} wyzwań` : 'dzisiaj' } };
 function boardRowsHTML(res, board, limit = 50) {
   if (!res.rows.length) return `<div class="card muted" style="text-align:center">Jeszcze nikt nie ma punktów w tym rankingu. Zagraj i bądź pierwszy!</div>`;
@@ -936,7 +989,7 @@ const PUZ = {
         title: 'Czas reakcji', dark: true, instr: 'Dotknij ekranu, gdy kółko zrobi się <b>żółte</b>. 3 próby.',
         render(st, api) {
           const thr = Math.round(560 - (l - 1) / 29 * 230) + MODES[api.mode].react;
-          st.innerHTML = `<div class="react"><div class="blob"></div><div class="times"><b>czas · ms</b><br><span id="tl"></span><br>cel: śr. &lt; ${thr}</div><div class="msg">Czekaj na żółty…</div></div>`;
+          st.innerHTML = `<div class="react"><div class="blob"></div><div class="times"><b>czas · ms</b><br><span id="tl"></span><br>cel: średnio &lt; ${thr}</div><div class="msg">Czekaj na żółty…</div></div>`;
           const box = $('.react', st), msg = $('.msg', st), tl = $('#tl', st);
           let k = 0, go = false, t0 = 0; const times = [];
           const next = () => { go = false; box.classList.remove('go'); msg.textContent = 'Czekaj na żółty…'; api.after(delays[k], () => { requestAnimationFrame(() => { if (!api.live()) return; box.classList.add('go'); go = true; t0 = performance.now(); msg.textContent = 'TERAZ!'; sfx('go'); }); }); };
@@ -948,7 +1001,7 @@ const PUZ = {
             if (k < 3) { msg.textContent = `${ms} ms`; api.after(500, next); }
             else {
               const avg = Math.round(times.reduce((a, b) => a + b, 0) / 3);
-              tl.innerHTML += `<br><b>śr. ${avg}</b>`;
+              tl.innerHTML += `<br><b>średnio ${avg}</b>`;
               if (!S.bestReact || avg < S.bestReact) { S.bestReact = avg; save(); }
               api.done(avg <= thr, { msg: `Średnio ${avg} ms (cel < ${thr} ms)`, frac: Math.max(0, Math.min(1, (thr - avg) / 150)), react: avg });
             }
@@ -1140,7 +1193,151 @@ const PUZ = {
         }
       };
     }
-  }
+  },
+
+  /* ---------------- NOWE ZADANIA (v2.2) ---------------- */
+  // PAMIĘĆ: zapamiętaj zestaw figur; po chwili jedna znika. Która?
+  missing: {
+    cat: 'mem', min: 2, gen(r, l) {
+      const SH = ['circle', 'square', 'triangle', 'hex', 'diamond', 'star', 'cross'], CO = ['red', 'blue', 'green', 'yellow', 'violet'];
+      const n = Math.min(9, 4 + Math.floor(l / 5));
+      const all = []; SH.forEach(s => CO.forEach(c => all.push(s + ':' + c)));
+      const set = r.shuffle(all).slice(0, n), miss = r.pick(set);
+      const rest = r.shuffle(set.filter(x => x !== miss));
+      const nOpt = l < 15 ? 4 : 6, opts = [miss];
+      const [ms, mc] = miss.split(':');
+      // podobne figury (ten sam kształt albo kolor), których nie było na planszy
+      const near = r.shuffle(all.filter(x => !set.includes(x) && (x.startsWith(ms + ':') || x.endsWith(':' + mc))));
+      const far = r.shuffle(all.filter(x => !set.includes(x) && !near.includes(x)));
+      for (const x of (l >= 10 ? near.concat(far) : far.concat(near))) { if (opts.length >= nOpt) break; opts.push(x); }
+      const ico = (x, sz = 100) => { const [s, c] = x.split(':'); return `<svg viewBox="0 0 100 100">${shp(s, 50, 50, 40, COL[c], 'stroke="#17161a" stroke-width="3"')}</svg>`; };
+      const showMs = Math.max(2600, 4200 + n * 250 - l * 60);
+      const board = (list, sm) => `<div class="mset${sm ? ' sm' : ''}" style="grid-template-columns:repeat(${list.length > 6 ? 3 : list.length > 4 ? 3 : 2},1fr)">${list.map(x => `<div>${ico(x)}</div>`).join('')}</div>`;
+      return {
+        title: 'Co zniknęło?', instr: `Zapamiętaj <b>${n} figur</b> (kształt i kolor). Za chwilę jedna z nich zniknie.`,
+        render(st, api) {
+          st.innerHTML = board(set) + `<div class="hint">Zapamiętuj…</div>`;
+          api.after(showMs, () => {
+            st.innerHTML = '<div class="mask"></div>'; api.instr('Czekaj…');
+            api.after(l >= 18 ? 1200 : 600, () => {
+              st.innerHTML = board(rest, true) + '<div class="hint">Te figury zostały (w nowej kolejności). Brakującą wybierz poniżej.</div>';
+              api.instr('Której figury <b>brakuje</b>?', true);
+              optButtons(st, r.shuffle(opts), miss, api, x => ico(x), 'figs');
+              api.timer(Math.max(6, 11 - l * .15));
+            });
+          });
+        }
+      };
+    }
+  },
+  // LOGIKA: wagi szalkowe. Z dwóch (trzech) zrównoważonych wag wylicz, ile małych figur waży zestaw.
+  scales: {
+    cat: 'log', min: 3, gen(r, l) {
+      const sh = r.shuffle(['circle', 'square', 'triangle', 'hex', 'star']).slice(0, 4), co = ['#ff4d4d', '#3d8bff', '#2fd16b', '#b18cff'];
+      const a = r.range(2, 3), b = r.range(2, l < 8 ? 3 : 4), c = r.range(2, 3);
+      // wagi: A = a·B, B = b·C, (C = c·D)
+      const deep = l >= 20;
+      const w = deep ? [a * b * c, b * c, c, 1] : [a * b, b, 1];
+      const scalesDef = [[[0], Array(a).fill(1)], [[1], Array(b).fill(2)]].concat(deep ? [[[2], Array(c).fill(3)]] : []);
+      let ask, unit = deep ? 3 : 2;
+      if (l < 12) ask = [0];
+      else if (l < 20) ask = r() < .5 ? [0, 1] : [0, 2];
+      else ask = r() < .5 ? [0, 2] : [1, 2];
+      const ans = ask.reduce((s, i) => s + w[i], 0) / w[unit];
+      const fic = (i, sz = 28) => `<svg viewBox="0 0 100 100" width="${sz}" height="${sz}">${shp(sh[i], 50, 50, 42, co[i], 'stroke="#17161a" stroke-width="5"')}</svg>`;
+      const pan = items => `<div class="pan">${items.map(i => fic(i)).join('')}</div>`;
+      const scale = (L, R, q) => `<div class="scale${q ? ' ask' : ''}"><div class="pans">${pan(L)}<div class="eq">=</div>${q ? `<div class="pan q"><b>?</b> × ${fic(unit)}</div>` : pan(R)}</div><svg viewBox="0 0 200 26" class="beam"><path d="M10 6h180" stroke="#17161a" stroke-width="5" stroke-linecap="round"/><path d="M100 6 88 24h24z" fill="#17161a"/></svg></div>`;
+      const opts = numOptions(r, ans, [ans + 1, ans - 1, ask.length > 1 ? ans - w[ask[1]] / w[unit] : a + b, a + b + (deep ? c : 0)]);
+      return {
+        title: 'Wagi', instr: `Każda waga jest w równowadze. Ile <b>${fic(unit, 18)}</b> waży zestaw ze znakiem zapytania?`,
+        render(st, api) {
+          st.innerHTML = `<div class="scales">${scalesDef.map(([L, R]) => scale(L, R)).join('')}${scale(ask, [], true)}</div>`;
+          optButtons(st, opts, ans, api);
+          api.timer(Math.max(12, 26 - l * .35));
+        }
+      };
+    }
+  },
+  // REFLEKS: kierunek środkowej strzałki (boczne strzałki próbują Cię zmylić)
+  arrows: {
+    cat: 'ref', min: 4, gen(r, l) {
+      const N = 8 + Math.floor(l / 4), flank = l >= 6, inv = l >= 18;
+      const seq = range(N).map(i => {
+        const d = r.pick(['L', 'R']);
+        const incong = flank && r() < Math.min(.7, .3 + l * .015);
+        const red = inv && i > 1 && r() < .3;
+        return { d, f: flank ? (incong ? (d === 'L' ? 'R' : 'L') : d) : null, red };
+      });
+      return {
+        title: 'Kierunek', instr: inv ? 'Wskaż kierunek <b>środkowej</b> strzałki. Gdy środkowa jest <b>czerwona</b>, wskaż <b>przeciwny</b> kierunek!' : flank ? 'Wskaż kierunek <b>środkowej</b> strzałki. Boczne strzałki próbują Cię zmylić.' : 'Wskaż, w którą stronę pokazuje strzałka.',
+        render(st, api) {
+          const win = Math.max(850, 2100 - l * 40) * (api.mode === 'easy' ? 1.3 : api.mode === 'expert' ? .88 : 1);
+          const arr = (d, c) => `<svg viewBox="0 0 60 60" class="arw"><path d="${d === 'L' ? 'M8 30 30 10v12h22v16H30v12z' : 'M52 30 30 10v12H8v16h22v12z'}" fill="${c}"/></svg>`;
+          st.innerHTML = `<div class="arrows"><div class="arow"></div><div class="abtns"><button class="btn" data-d="L" aria-label="W lewo">${arr('L', 'currentColor')}</button><button class="btn" data-d="R" aria-label="W prawo">${arr('R', 'currentColor')}</button></div></div><div class="progressdots">${seq.map(() => '<i></i>').join('')}</div>`;
+          const row = $('.arow', st), dots = $$('.progressdots i', st);
+          let i = -1, live = false, tid = 0;
+          const show = () => {
+            i++; if (i >= N) { api.done(true, { frac: .7 }); return; }
+            const s = seq[i], mid = arr(s.d, s.red ? '#d9363e' : '#17161a'), side = s.f ? arr(s.f, '#6f6a5c') : '<svg viewBox="0 0 60 60" class="arw"><path d="M12 27h36v6H12z" fill="#b9b19c"/></svg>';
+            row.innerHTML = side + side + mid + side + side; live = true;
+            tid = api.after(win, () => { if (live) api.done(false, { msg: 'Za wolno!' }); });
+          };
+          st.addEventListener('pointerdown', e => {
+            const b = e.target.closest('[data-d]'); if (!b || !api.live() || !live) return;
+            live = false; clearTimeout(tid);
+            const s = seq[i], want = s.red ? (s.d === 'L' ? 'R' : 'L') : s.d;
+            if (b.dataset.d !== want) { api.done(false, { msg: s.red ? 'Czerwona strzałka: trzeba było wskazać przeciwny kierunek!' : 'Zły kierunek!' }); return; }
+            sfx('tap'); dots[i].classList.add('on'); row.innerHTML = ''; api.after(220, show);
+          });
+          api.after(600, show);
+        }
+      };
+    }
+  },
+  // PERCEPCJA: która figura to ta sama, tylko obrócona? (lustrzane odbicia się nie liczą)
+  rotate: {
+    cat: 'per', min: 3, gen(r, l) {
+      const g = l < 10 ? 3 : 4, k = l < 10 ? r.range(4, 5) : r.range(5, 7);
+      const norm = cells => { const mx = Math.min(...cells.map(c => c[0])), my = Math.min(...cells.map(c => c[1])); return cells.map(c => [c[0] - mx, c[1] - my]).sort((p, q) => p[0] - q[0] || p[1] - q[1]); };
+      const key = cells => norm(cells).map(c => c.join(',')).join(';');
+      const rot = cells => cells.map(([x, y]) => [-y, x]);
+      const mir = cells => cells.map(([x, y]) => [-x, y]);
+      const rots = c => { const o = [c]; for (let i = 0; i < 3; i++) o.push(rot(o[o.length - 1])); return o; };
+      let base, guard = 0;
+      do {
+        const s = [[r.int(g), r.int(g)]];
+        while (s.length < k) { const [x, y] = r.pick(s), d = r.pick([[1, 0], [-1, 0], [0, 1], [0, -1]]), n = [x + d[0], y + d[1]]; if (n[0] >= 0 && n[1] >= 0 && n[0] < g && n[1] < g && !s.some(c => c[0] === n[0] && c[1] === n[1])) s.push(n); }
+        base = s;
+        const R = new Set(rots(base).map(key)), M = new Set(rots(mir(base)).map(key));
+        if (R.size === 4 && M.size === 4 && ![...R].some(x => M.has(x))) break;
+      } while (guard++ < 400);
+      const Rk = new Set(rots(base).map(key));
+      const shown = rots(base)[r.int(4)];
+      const right = rots(shown)[r.range(1, 3)];
+      const opts = [right], seen = new Set([key(right)]);
+      r.shuffle(rots(mir(base))).forEach(m => { if (opts.length < 4 && !seen.has(key(m))) { seen.add(key(m)); opts.push(m); } });
+      if (l >= 18) {
+        // dodatkowo: obrócona figura z jednym przesuniętym klockiem
+        let gg = 0;
+        while (opts.length < 6 && gg++ < 200) {
+          const v = rots(base)[r.int(4)].map(c => c.slice()), j = r.int(v.length), d = r.pick([[1, 0], [-1, 0], [0, 1], [0, -1]]);
+          const n = [v[j][0] + d[0], v[j][1] + d[1]]; if (v.some(c => c[0] === n[0] && c[1] === n[1])) continue;
+          v[j] = n; const kk = key(v); if (seen.has(kk) || Rk.has(kk)) continue;
+          seen.add(kk); opts.push(v);
+        }
+      }
+      const col = r.pick(['#3d8bff', '#ff8a1f', '#2fd16b', '#b18cff']);
+      const svg = cells => { const c = norm(cells), w = Math.max(...c.map(p => p[0])) + 1, h = Math.max(...c.map(p => p[1])) + 1, s = 84 / Math.max(w, h, 3), ox = 50 - w * s / 2, oy = 50 - h * s / 2; return `<svg viewBox="0 0 100 100">${c.map(([x, y]) => `<rect x="${(ox + x * s + 1.5).toFixed(1)}" y="${(oy + y * s + 1.5).toFixed(1)}" width="${(s - 3).toFixed(1)}" height="${(s - 3).toFixed(1)}" rx="${(s * .14).toFixed(1)}" fill="${col}" stroke="#17161a" stroke-width="3"/>`).join('')}</svg>`; };
+      return {
+        title: 'Obrót', instr: 'Która figura to <b>ta sama figura, tylko obrócona</b>? Lustrzane odbicie się nie liczy.',
+        render(st, api) {
+          st.innerHTML = `<div class="figbig rotsrc">${svg(shown)}</div>`;
+          optButtons(st, r.shuffle(opts), right, api, svg, 'figs');
+          api.timer(Math.max(8, 16 - l * .22));
+        }
+      };
+    }
+  },
 };
 const TYPES_BY_CAT = c => Object.keys(PUZ).filter(k => PUZ[k].cat === c);
 
@@ -1284,7 +1481,7 @@ function levelPassed(info) {
     <div class="big">Poziom ${l} zaliczony!</div>
     <div class="megapct"><span id="pc">${fmtPct(prev)}</span><small>%</small></div>
     <p style="margin:0">Tylko <b>${fmtPct(now)}%</b> graczy przeszło ten poziom.${l >= 8 && !RUN.train ? ' Czy Twój znajomy da radę?' : ''}</p>
-    <div class="row" style="justify-content:center;flex-wrap:wrap"><span class="pill num">+${pts} pkt</span><span class="pill num" style="color:var(--violet)">+${xp} XP</span><span class="pill num">Σ ${RUN.score}</span>${!RUN.train && l % 5 === 0 ? `<span class="pill num" style="color:var(--accent)">${coinSVG(16)} +1</span>` : ''}</div>
+    <div class="row" style="justify-content:center;flex-wrap:wrap"><span class="pill num">+${pts} pkt</span><span class="pill num" style="color:var(--violet)">+${xp} XP</span><span class="pill">Razem: <b class="num">${RUN.score}</b> pkt</span>${!RUN.train && l % 5 === 0 ? `<span class="pill num" style="color:var(--accent)">${coinSVG(16)} +1</span>` : ''}</div>
     <p class="muted" style="margin:0;font-size:13px">Następny: poziom ${l + 1}, przechodzi go ${fmtPct(P[l + 1])}%${RUN.train ? ` · +${xpTrain(l + 1)} XP` : ` · +${xpRun(l + 1, RUN.mode)} XP`}</p>
     <div class="btncol"><button class="btn primary" id="nx">Dalej ${ic('play')}</button>${RUN.train ? '' : `<button class="btn ghost" id="ch">${ic('people')} Wyzwij znajomego</button>`}</div>`);
   const el = $('#pc', o), t0 = performance.now();
@@ -1367,7 +1564,7 @@ function resultScreen(res, challenge, newBadges = []) {
     <p style="margin:0">${club ? 'Przeszedłeś wszystkie 30 poziomów. Należysz do <b>1%</b> najlepszych mózgów.' : `Doszedłeś do poziomu <b>${res.lvl}</b>. Tak daleko dochodzi tylko <b>${fmtPct(pct)}%</b> graczy.`}</p>
     <div class="statgrid"><div class="stat"><b>${res.lvl}/30</b><span>poziom</span></div><div class="stat"><b>${res.score}</b><span>punkty</span></div><div class="stat"><b style="font-size:13px;line-height:1.9">${titleFor(res.lvl)}</b><span>ranga</span></div></div>
     ${xpCard(res)}
-    ${res.train ? '' : coinCard(res.coins, res.coins ? [`${res.coins} × 5 ukończonych poziomów`] : [], 'Moneta za każde 5 ukończonych poziomów w jednej grze (treningi się nie liczą).')}
+    ${res.train ? '' : coinCard(res.coins, res.coins ? [`za ${res.coins * 5} ukończonych poziomów (1 moneta co 5 poziomów)`] : [], 'Moneta za każde 5 ukończonych poziomów w jednej grze (treningi się nie liczą).')}
     ${vs}
     ${newBadges.length ? `<div class="card" style="text-align:left"><div class="eyebrow" style="margin-bottom:8px">Nowe odznaki</div>${newBadges.map(b => `<div class="row">${medal(b, true)}<div><b>${BADGES[b].n}</b><div class="muted" style="font-size:12px">${BADGES[b].d}</div></div></div>`).join('')}</div>` : ''}
     <div class="btncol">
@@ -1534,6 +1731,7 @@ function dailyScreen() {
   </div>`;
   $('#bk').onclick = home;
   $$('[data-i]').forEach(b => b.onclick = () => playDaily(b.dataset.i));
+  $$('[data-prize]').forEach(b => b.onclick = () => prizeSheet(b.dataset.prize));
   const cp = $('#cpy'); if (cp) cp.onclick = () => copyText(`1% Club · Wyzwania ${new Date().toLocaleDateString('pl-PL')}\n${dailyGrid()} · ${sum} pkt\nSeria: ${streakNow()} dni\n${linkFor('')}`.replace(/#$/, ''));
   clearInterval(dailyScreen.iv); dailyScreen.iv = setInterval(() => { const e = $('#cd'); if (!e) return clearInterval(dailyScreen.iv); e.textContent = hms(msToMidnight()); }, 1000);
   loadBoard('daily').then(res => {
@@ -1559,7 +1757,7 @@ function playDaily(i) {
     const xp = recordDaily(i, ok, pts, info.ms || 0, d.cat);
     const o = overlay(`${brainSVG('brain', ok ? 'happy' : 'sad', avatarColor()).replace('class="brain"', 'class="brain" style="width:84px;height:70px;margin:0 auto"')}<div class="big">${ok ? 'Zaliczone!' : 'Nie tym razem'}</div>
       ${ok ? `<div class="megapct" style="font-size:54px">+${pts}<small> pkt</small></div><p class="muted" style="margin:0">Czas: ${secs(info.ms) || '—'} · szybkość ${Math.round((info.frac || 0) * 100)}%${i === 'b' ? ' · bonus ×2' : ''}</p>` : `<p class="muted" style="margin:0">${info.msg || ''}</p>`}
-      <div class="row" style="justify-content:center"><span class="pill num" style="color:var(--violet)">+${xp} XP</span><span class="pill num">dziś Σ ${(S.dailyPts[today()] || 0).toLocaleString('pl-PL')} pkt</span></div>
+      <div class="row" style="justify-content:center"><span class="pill num" style="color:var(--violet)">+${xp} XP</span><span class="pill">Razem dziś: <b class="num">${(S.dailyPts[today()] || 0).toLocaleString('pl-PL')}</b> pkt</span></div>
       <button class="btn primary" id="bk2">Wróć do wyzwań</button>`);
     if (ok && i === 'b') confetti(140);
     $('#bk2', o).onclick = () => { closeOverlay(); dailyScreen(); };
@@ -1588,7 +1786,7 @@ function recordDaily(i, ok, pts = 0, ms = 0, cat) {
 function rankingScreen(tab = 'day') {
   const B = BOARDS[tab];
   leaveGame(); app.innerHTML = `<div class="screen">
-    <div class="topbar"><button class="iconbtn" id="bk" aria-label="Wróć">${ic('back')}</button><h2 style="font-size:20px">Ranking</h2></div>
+    <div class="topbar"><button class="iconbtn" id="bk" aria-label="Wróć">${ic('back')}</button><h2 style="font-size:20px">Ranking</h2><div class="sp"></div><button class="pill prizebtn" id="pzb" aria-label="Nagrody za ranking">${ic('trophy')}Nagrody</button></div>
     <div class="tabs" style="grid-template-columns:repeat(4,1fr)">${Object.entries(BOARDS).map(([k, b]) => `<button aria-pressed="${tab === k}" data-t="${k}" style="font-size:13px">${b.tab}</button>`).join('')}</div>
     <div class="card row"><div style="min-width:0"><div class="eyebrow">${B.title}</div><div style="font-family:var(--font-d);font-size:24px;font-weight:800" id="rmy">—</div><div class="muted" style="font-size:13px">${tab === 'week' ? weekRange() : tab === 'all' ? 'od początku' : new Date().toLocaleDateString('pl-PL')}</div></div><div class="sp"></div><div style="text-align:right"><div class="bigpct num" style="font-size:26px" id="rpts">—</div><div class="muted" style="font-size:12px">${B.unit}</div></div></div>
     ${prizeCard(tab)}
@@ -1597,6 +1795,8 @@ function rankingScreen(tab = 'day') {
   </div>`;
   $('#bk').onclick = home;
   $$('[data-t]').forEach(b => b.onclick = () => rankingScreen(b.dataset.t));
+  $('#pzb').onclick = () => prizeSheet(tab);
+  $$('[data-prize]').forEach(b => b.onclick = () => prizeSheet(b.dataset.prize));
   loadBoard(tab).then(res => {
     if (!$('#board')) return;
     $('#board').innerHTML = boardRowsHTML(res, tab);
@@ -1686,15 +1886,15 @@ function profileScreen() {
     </section>
     <button class="card row" id="rk3" style="text-align:left;box-shadow:inset 0 0 0 2px var(--accent)">${rankEmblem(rankIdx(L.lv), 52)}<div style="min-width:0"><div class="eyebrow">Rangi · ${rankIdx(L.lv) + 1} z 20</div><div style="font-family:var(--font-d);font-weight:800">${ptitle(L.lv)}</div><div class="muted" style="font-size:12px">Dotknij, aby zobaczyć wszystkie rangi</div></div><div class="sp"></div>${ic('play')}</button>
     <div class="eyebrow">Punkty</div>
-    <div class="statgrid">${statBox((S.dayBest[t] ? S.dayBest[t].score : 0).toLocaleString('pl-PL'), 'dziś (najl.)')}${statBox((S.weekPts[weekKey()] || 0).toLocaleString('pl-PL'), 'ten tydzień')}${statBox(S.totalRun.toLocaleString('pl-PL'), 'łącznie')}${statBox((S.dailyPts[t] || 0).toLocaleString('pl-PL'), 'wyzwania dziś')}${statBox(S.best.score.toLocaleString('pl-PL'), 'najl. gra')}${statBox(S.dailyDone || 0, 'wyzwań zal.')}</div>
+    <div class="statgrid">${statBox((S.dayBest[t] ? S.dayBest[t].score : 0).toLocaleString('pl-PL'), 'najlepsza dziś')}${statBox((S.weekPts[weekKey()] || 0).toLocaleString('pl-PL'), 'ten tydzień')}${statBox(S.totalRun.toLocaleString('pl-PL'), 'łącznie')}${statBox((S.dailyPts[t] || 0).toLocaleString('pl-PL'), 'wyzwania dziś')}${statBox(S.best.score.toLocaleString('pl-PL'), 'najlepsza gra')}${statBox(S.dailyDone || 0, 'zaliczone wyzwania')}</div>
     <div class="eyebrow">Gra</div>
-    <div class="statgrid">${statBox(`${S.best.level}/30`, 'rekord')}${statBox(fmtPct(P[S.best.level]) + '%', 'jesteś w top')}${statBox(avgLvl, 'śr. poziom')}${statBox(S.games, 'gier')}${statBox(`${streakNow()} / ${S.streak.max || 0}`, 'seria / max')}${statBox(S.bestReact ? S.bestReact + ' ms' : '—', 'reakcja')}</div>
+    <div class="statgrid">${statBox(`${S.best.level}/30`, 'rekord')}${statBox(fmtPct(P[S.best.level]) + '%', 'jesteś w top')}${statBox(avgLvl, 'średni poziom')}${statBox(S.games, 'gier')}${statBox(`${streakNow()} / ${S.streak.max || 0}`, 'seria / max')}${statBox(S.bestReact ? S.bestReact + ' ms' : '—', 'reakcja')}</div>
     <div class="card" style="display:flex;flex-direction:column;gap:12px"><div class="eyebrow">Skuteczność w kategoriach</div>${catRows}</div>
     <div class="card"><div class="eyebrow" style="margin-bottom:8px">Rekordy w trybach</div><div class="statgrid">${Object.entries(MODES).map(([k, m]) => statBox(`${S.bestBy[k] || 0}/30`, m.label)).join('')}</div></div>
     <div class="card"><div class="eyebrow" style="margin-bottom:8px">Deathmatch</div><div class="statgrid">${statBox(S.dm ? S.dm.w : 0, 'wygrane')}${statBox(S.dm ? S.dm.l : 0, 'przegrane')}${statBox(S.dm && S.dm.best ? Math.floor(S.dm.best / 60) + ':' + String(S.dm.best % 60).padStart(2, '0') : '–', 'najdłuższa walka')}</div></div>
     <button class="card row" id="pb" style="text-align:left"><div><div class="eyebrow">Odznaki</div><div style="font-weight:800;margin-top:4px">${S.badges.length} z ${Object.keys(BADGES).length}</div></div><div class="sp"></div><div class="row" style="gap:4px">${S.badges.slice(-4).map(b => medal(b, true)).join('') || '<span class="muted">jeszcze brak</span>'}</div></button>
     <div class="card"><div class="eyebrow" style="margin-bottom:8px">Ostatnie gry</div>${runs.slice(0, 8).map(h => `<div class="row" style="padding:7px 0;border-bottom:1px solid var(--line);font-size:13px"><span class="num muted" style="font-size:12px">${h.date.slice(5).split('-').reverse().join('.')}</span><span>${MODES[h.mode].label}</span><div class="sp"></div><b class="num">poz. ${h.lvl}</b><span class="num" style="color:var(--accent);min-width:60px;text-align:right">${h.score.toLocaleString('pl-PL')}</span></div>`).join('') || '<span class="muted">Brak gier</span>'}</div>
-    <div class="card" style="display:flex;flex-direction:column;gap:6px"><div class="eyebrow">Jak zdobywać XP</div><div class="muted" style="font-size:13px;line-height:1.6">Zwykła gra: 8 XP za poziom 1, rośnie do 54 XP za poziom 30. Łatwy ×0,6. <b style="color:var(--fg)">Ekspert ×1,6 i jeszcze więcej na wyższych poziomach</b> (do 130 XP za poziom). +5 za grę, +25 za rekord, +100 za komplet 30 poziomów.<br>Trening: od 2 do 14 XP za poziom.<br><b style="color:var(--fg)">Wyzwania dnia</b>: do ok. 100 XP za szybkie rozwiązanie (trudniejsze dają więcej), +80 za komplet 5, +60 za bonus, a seria dni dodaje do +50%.</div></div>
+    <div class="card" style="display:flex;flex-direction:column;gap:6px"><div class="eyebrow">Jak zdobywać XP</div><div class="muted" style="font-size:13px;line-height:1.6">Zwykła gra: 8 XP za poziom 1, rośnie do 54 XP za poziom 30. Tryb łatwy: 60% tego XP. <b style="color:var(--fg)">Ekspert: o 60% więcej XP i jeszcze więcej na wyższych poziomach</b> (do 130 XP za poziom). +5 za grę, +25 za rekord, +100 za komplet 30 poziomów.<br>Trening: od 2 do 14 XP za poziom.<br><b style="color:var(--fg)">Wyzwania dnia</b>: do ok. 100 XP za szybkie rozwiązanie (trudniejsze dają więcej), +80 za komplet 5, +60 za bonus, a seria dni dodaje do +50%.</div></div>
     <p class="foot">Wersja ${APP_VERSION} · ID gracza: ${playerId().slice(0, 8)} · ${onlineOn() ? 'ranking online włączony' : 'wyniki zapisane na tym urządzeniu'}</p>
     <button class="btn line" id="rs">Wyczyść postęp</button>
   </div>`;
@@ -1817,7 +2017,7 @@ function home() {
    ========================================================= */
 const DM_LIB = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js';
 const DM_MAX = 30000, DM_FAST = 5000;
-const DM_TYPES = ['compare', 'series', 'matrix', 'shade', 'oddshape', 'count'];
+const DM_TYPES = ['compare', 'series', 'matrix', 'shade', 'oddshape', 'count', 'rotate', 'scales'];
 let DM = null, sbClient = null;
 function loadSupabase() {
   if (window.supabase && window.supabase.createClient) return Promise.resolve();
@@ -2126,7 +2326,7 @@ function dmRewards(win, dur, solved, fast) {
   let pts, xp;
   if (win) {
     pts = 250 + solved * 30 + fast * 10 + long * 60; xp = 35 + solved * 2 + long * 10;
-    b.push('zwycięstwo +35', `rozwiązane ${solved}×2`);
+    b.push('zwycięstwo +35', `rozwiązane zadania +${solved * 2}`);
   } else {
     pts = 30 + solved * 8 + long * 25; xp = 5 + long * 5;
     b.push('udział +5');
@@ -2143,7 +2343,7 @@ function dmResult(d, win, note) {
   S.dm.games++; if (win) S.dm.w++; else S.dm.l++; S.dm.best = Math.max(S.dm.best || 0, Math.round(dur));
   S.xp += rw.xp;
   const cTen = Math.floor(g.solved / 10), cWin = win ? 1 : 0, cParts = [];
-  if (cTen) cParts.push(`${cTen} × 10 zadań +${cTen}`); if (cWin) cParts.push('zwycięstwo +1');
+  if (cTen) cParts.push(`${cTen * 10} rozwiązanych zadań +${cTen}`); if (cWin) cParts.push('zwycięstwo +1');
   const coins = addCoins(cTen + cWin, `Deathmatch: ${win ? 'wygrana' : 'przegrana'}`) || 0;
   const w = weekKey();
   S.weekPts[w] = (S.weekPts[w] || 0) + rw.pts; S.totalRun += rw.pts;
@@ -2161,7 +2361,7 @@ function dmResult(d, win, note) {
     <div class="megapct" style="font-size:52px;color:${win ? 'var(--accent)' : 'var(--bad)'}">${win ? 'WYGRANA' : 'PRZEGRANA'}</div>
     <p style="margin:0">${note ? esc(note) + '. ' : ''}${win ? (note ? 'Zwycięstwo należy do Ciebie.' : `Twój lont wytrzymał dłużej niż lont gracza <b>${esc(opp.name)}</b>.`) : `Tym razem <b>${esc(opp.name)}</b> wytrzymał dłużej. Rewanż?`}</p>
     <div class="vs"><div class="side ${win ? 'win' : ''}"><div class="nm">${esc(displayName())}</div><b>${g.solved} ✓</b><span class="muted num">czas ${fmt(dur)}</span></div><div class="mid">VS</div><div class="side ${win ? '' : 'win'}"><div class="nm">${esc(opp.name)}</div><b>${od ? od.solved : g.oppSolved} ✓</b><span class="muted num">${od ? 'czas ' + fmt(od.dur) : '&nbsp;'}</span></div></div>
-    <div class="statgrid"><div class="stat"><b>+${rw.pts}</b><span>punkty</span></div><div class="stat"><b>${fmt(dur)}</b><span>czas walki</span></div><div class="stat"><b>${S.dm.w}:${S.dm.l}</b><span>bilans W:P</span></div></div>
+    <div class="statgrid"><div class="stat"><b>+${rw.pts}</b><span>punkty</span></div><div class="stat"><b>${fmt(dur)}</b><span>czas walki</span></div><div class="stat"><b>${S.dm.w}:${S.dm.l}</b><span>wygrane : przegrane</span></div></div>
     ${xpCard(res)}
     ${coinCard(coins, cParts, '+1 moneta za każde 10 rozwiązanych zadań i +1 za zwycięstwo.')}
     ${rw.long ? `<div class="muted" style="font-size:13px;margin-top:-6px">Długa walka: +${rw.long * (win ? 60 : 25)} pkt bonusu</div>` : `<div class="muted" style="font-size:13px;margin-top:-6px">Walka dłuższa niż 60 s daje bonus punktów i XP obu graczom.</div>`}
