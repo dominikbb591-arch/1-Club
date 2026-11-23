@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0b0b0d">
+<meta http-equiv="Cache-Control" content="no-cache">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -283,6 +284,7 @@ canvas.confetti{position:fixed;inset:0;pointer-events:none;z-index:80;width:100%
    (seed), więc każda ma jedną poprawną odpowiedź, a znajomy
    z linkiem dostaje identyczną rozgrywkę.
    ========================================================= */
+const APP_VERSION = '1.8 (rangi)';
 const PUBLIC_URL = 'https://claude.ai/artifact/Fx4EbzcJ1xnezqSifC6uTC'; // uzupełniane po publikacji (link do gry)
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1582,6 +1584,7 @@ function profileScreen() {
       <div class="field-in"><label class="eyebrow" for="pn">Pseudonim w rankingu</label><input id="pn" maxlength="14" value="${esc(S.name)}" placeholder="${esc(displayName())}"></div>
       <div><div class="eyebrow" style="margin-bottom:8px">Kolor mózgu</div><div class="row" style="gap:8px">${AVATARS.map((c, i) => `<button class="swatch" data-av="${i}" aria-label="Kolor ${i + 1}" aria-pressed="${(S.avatar || 0) === i}" style="background:${c}"></button>`).join('')}</div></div>
     </section>
+    <button class="card row" id="rk3" style="text-align:left;box-shadow:inset 0 0 0 2px var(--accent)">${rankEmblem(rankIdx(L.lv), 52)}<div style="min-width:0"><div class="eyebrow">Rangi · ${rankIdx(L.lv) + 1} z 20</div><div style="font-family:var(--font-d);font-weight:800">${ptitle(L.lv)}</div><div class="muted" style="font-size:12px">Dotknij, aby zobaczyć wszystkie rangi</div></div><div class="sp"></div>${ic('play')}</button>
     <div class="eyebrow">Punkty</div>
     <div class="statgrid">${statBox((S.dayBest[t] ? S.dayBest[t].score : 0).toLocaleString('pl-PL'), 'dziś (najl.)')}${statBox((S.weekPts[weekKey()] || 0).toLocaleString('pl-PL'), 'ten tydzień')}${statBox(S.totalRun.toLocaleString('pl-PL'), 'łącznie')}${statBox((S.dailyPts[t] || 0).toLocaleString('pl-PL'), 'wyzwania dziś')}${statBox(S.best.score.toLocaleString('pl-PL'), 'najl. gra')}${statBox(S.dailyDone || 0, 'wyzwań zal.')}</div>
     <div class="eyebrow">Gra</div>
@@ -1591,12 +1594,12 @@ function profileScreen() {
     <button class="card row" id="pb" style="text-align:left"><div><div class="eyebrow">Odznaki</div><div style="font-weight:800;margin-top:4px">${S.badges.length} z ${Object.keys(BADGES).length}</div></div><div class="sp"></div><div class="row" style="gap:4px">${S.badges.slice(-4).map(b => medal(b, true)).join('') || '<span class="muted">jeszcze brak</span>'}</div></button>
     <div class="card"><div class="eyebrow" style="margin-bottom:8px">Ostatnie gry</div>${runs.slice(0, 8).map(h => `<div class="row" style="padding:7px 0;border-bottom:1px solid var(--line);font-size:13px"><span class="num muted" style="font-size:12px">${h.date.slice(5).split('-').reverse().join('.')}</span><span>${MODES[h.mode].label}</span><div class="sp"></div><b class="num">poz. ${h.lvl}</b><span class="num" style="color:var(--accent);min-width:60px;text-align:right">${h.score.toLocaleString('pl-PL')}</span></div>`).join('') || '<span class="muted">Brak gier</span>'}</div>
     <div class="card" style="display:flex;flex-direction:column;gap:6px"><div class="eyebrow">Jak zdobywać XP</div><div class="muted" style="font-size:13px;line-height:1.6">Zwykła gra: 8 XP za poziom 1, rośnie do 54 XP za poziom 30. Łatwy ×0,6. <b style="color:var(--fg)">Ekspert ×1,6 i jeszcze więcej na wyższych poziomach</b> (do 130 XP za poziom). +5 za grę, +25 za rekord, +100 za komplet 30 poziomów.<br>Trening: od 2 do 14 XP za poziom.<br><b style="color:var(--fg)">Wyzwania dnia</b>: do ok. 100 XP za szybkie rozwiązanie (trudniejsze dają więcej), +80 za komplet 5, +60 za bonus, a seria dni dodaje do +50%.</div></div>
-    <p class="foot">ID gracza: ${playerId().slice(0, 8)} · ${onlineOn() ? 'ranking online włączony' : 'wyniki zapisane na tym urządzeniu'}</p>
+    <p class="foot">Wersja ${APP_VERSION} · ID gracza: ${playerId().slice(0, 8)} · ${onlineOn() ? 'ranking online włączony' : 'wyniki zapisane na tym urządzeniu'}</p>
     <button class="btn line" id="rs">Wyczyść postęp</button>
   </div>`;
   $('#bk').onclick = home;
   $('#pb').onclick = badgesScreen;
-  $('#rk').onclick = ranksScreen; $('#rk2').onclick = ranksScreen;
+  $('#rk').onclick = ranksScreen; $('#rk2').onclick = ranksScreen; $('#rk3').onclick = ranksScreen;
   $('#pn').onchange = e => { S.name = e.target.value.trim().slice(0, 14); save(); toast('Zapisano pseudonim'); profileScreen(); };
   $$('[data-av]').forEach(b => b.onclick = () => { S.avatar = +b.dataset.av; save(); profileScreen(); });
   $('#rs').onclick = () => {
@@ -1679,7 +1682,7 @@ function home() {
       <div class="eyebrow">Masz kod wyzwania od znajomego?</div>
       <form class="code" id="codef"><input id="code" placeholder="c-abc123-n-12-…" autocomplete="off" aria-label="Kod wyzwania"><button class="btn primary sm" type="submit">Otwórz</button></form>
     </section>
-    <p class="foot">1% Club · procent graczy przy poziomach jest szacunkowy. Rankingi zawierają tylko prawdziwe wyniki.</p>
+    <p class="foot">1% Club · procent graczy przy poziomach jest szacunkowy. Rankingi zawierają tylko prawdziwe wyniki.<br>Wersja ${APP_VERSION}</p>
   </div>`;
   $('#play').onclick = () => startRun({ mode: S.mode });
   $('#snd').onclick = () => { S.sound = !S.sound; save(); $('#snd').innerHTML = ic(S.sound ? 'sound' : 'mute'); if (S.sound) sfx('tap'); };
