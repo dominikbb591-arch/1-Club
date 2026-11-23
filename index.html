@@ -331,6 +331,11 @@ canvas.confetti{position:fixed;inset:0;pointer-events:none;z-index:80;width:100%
 body.quake #app{animation:quake .5s}
 @keyframes quake{10%,50%,90%{transform:translate(-9px,4px)}30%,70%{transform:translate(9px,-5px)}}
 @media (max-height:700px){.dmcenter{width:88px;height:74px}.dmnum{top:47px;font-size:17px}.dmside{padding:6px 8px}}
+.coinpill{min-height:40px;color:var(--accent);border-radius:12px}
+.coincard{padding:12px 14px}
+.prizes{gap:10px;padding:12px 14px;background:linear-gradient(90deg,rgba(255,210,63,.12),var(--surface))}
+.coinburst{display:grid;place-items:center;animation:coinspin 1s ease-out}
+@keyframes coinspin{from{transform:rotateY(540deg) scale(.4)}to{transform:none}}
 </style>
 
 </head>
@@ -345,7 +350,7 @@ body.quake #app{animation:quake .5s}
    (seed), więc każda ma jedną poprawną odpowiedź, a znajomy
    z linkiem dostaje identyczną rozgrywkę.
    ========================================================= */
-const APP_VERSION = '2.0';
+const APP_VERSION = '2.1';
 const PUBLIC_URL = 'https://claude.ai/artifact/Fx4EbzcJ1xnezqSifC6uTC'; // uzupełniane po publikacji (link do gry)
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -396,7 +401,7 @@ const COL_PLURAL = { red: 'CZERWONE', blue: 'NIEBIESKIE', green: 'ZIELONE', yell
 /* ---------- stan ---------- */
 const KEY = 'onepct-club-v1';
 const defState = () => ({ name: '', mode: 'normal', sound: true, xp: 0, games: 0, best: { level: 0, score: 0 }, bestBy: { easy: 0, normal: 0, expert: 0 }, today: { date: '', level: 0, score: 0 }, streak: { count: 0, last: '', max: 0 }, daily: {}, history: [], badges: [], bestReact: 0,
-  pid: '', avatar: 0, totalRun: 0, weekPts: {}, dayBest: {}, dailyPts: {}, catStats: {}, levelsPassed: 0, dailyDone: 0, trainBest: {}, outbox: [], dm: { w: 0, l: 0, best: 0, games: 0 } });
+  pid: '', avatar: 0, totalRun: 0, weekPts: {}, dayBest: {}, dailyPts: {}, catStats: {}, levelsPassed: 0, dailyDone: 0, trainBest: {}, outbox: [], dm: { w: 0, l: 0, best: 0, games: 0 }, coins: 0, coinLog: [], rwClaimed: {}, rwSince: '', rwPending: [] });
 let S = load();
 function load() { try { const r = JSON.parse(localStorage.getItem(KEY) || 'null'); return Object.assign(defState(), r || {}); } catch (e) { return defState(); } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
@@ -487,6 +492,9 @@ async function loadBoard(board) {
     return { rows: rows || [], me: m, total: m ? m.total : (rows || []).length, online: true };
   } catch (e) { return { ...localBoard(board), online: false, error: true }; }
 }
+const PRIZES = { day: [5, 3, 2, 1, 1, 1, 1, 1, 1, 1], week: [50, 30, 20, 10, 10, 10, 10, 10, 10, 10], daily: [10, 5, 2] };
+const PRIZE_TXT = { day: 'Nagrody po końcu dnia: 1. miejsce +5, 2. +3, 3. +2, miejsca 4–10 +1 moneta.', week: 'Nagrody po końcu tygodnia (niedziela, północ): 1. miejsce +50, 2. +30, 3. +20, miejsca 4–10 +10 monet.', daily: 'Nagrody po końcu dnia: 1. miejsce +10, 2. +5, 3. +2 monety.' };
+const prizeCard = b => PRIZE_TXT[b] ? `<div class="card row prizes">${coinSVG(26)}<div style="font-size:13px">${PRIZE_TXT[b]}</div></div>` : '';
 const BOARDS = { day: { tab: 'Dzisiaj', title: 'Najlepsza gra dnia', unit: 'pkt w najlepszej grze', sub: r => `poziom ${r.level}` }, week: { tab: 'Tydzień', title: 'Suma punktów tygodnia', unit: 'pkt w tym tygodniu', sub: r => r.games ? `${r.games} gier` : 'pon–niedz' }, all: { tab: 'Ogółem', title: 'Suma wszystkich punktów', unit: 'pkt łącznie', sub: r => r.games ? `${r.games} gier` : `rekord: poz. ${r.level}` }, daily: { tab: 'Wyzwania', title: 'Wyzwania dnia: suma punktów', unit: 'pkt z wyzwań dnia', sub: r => r.games ? `${r.games} wyzwań` : 'dzisiaj' } };
 function boardRowsHTML(res, board, limit = 50) {
   if (!res.rows.length) return `<div class="card muted" style="text-align:center">Jeszcze nikt nie ma punktów w tym rankingu. Zagraj i bądź pierwszy!</div>`;
@@ -541,6 +549,20 @@ const ICONS = {
   watch: '<rect x="9" y="1.5" width="6" height="3" rx="1" fill="currentColor"/><circle cx="12" cy="14" r="8" fill="currentColor"/><path d="M12 14V8.5A5.5 5.5 0 0 1 17.5 14z" fill="#0b0b0d" opacity=".55"/>',
   copy: '<path fill="currentColor" d="M8 3h11v13h-3v5H5V8h3zm2 2v3h6v6h1V5zM7 10v9h7v-9z"/>'
 };
+const coinSVG = (s = 18) => `<svg class="coin" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><circle cx="12" cy="12" r="11" fill="#c98a12"/><circle cx="12" cy="11" r="10" fill="#ffd23f"/><circle cx="12" cy="11" r="7" fill="none" stroke="#c98a12" stroke-width="1.6"/><path d="M10.2 8.2 12.6 7v8" stroke="#a36a00" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 6.5a7.5 7.5 0 0 1 4-2.6" stroke="#fff" stroke-opacity=".7" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>`;
+const coinWord = n => n === 1 ? 'moneta' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 'monety' : 'monet';
+const coinWordAcc = n => n === 1 ? 'monetę' : coinWord(n);
+function addCoins(n, why) {
+  if (!n) return 0;
+  S.coins = (S.coins || 0) + n;
+  S.coinLog = [{ n, why, ts: Date.now() }].concat(S.coinLog || []).slice(0, 30);
+  return n;
+}
+// karta „Monety” w podsumowaniach gier
+function coinCard(n, parts, hint) {
+  return `<div class="card coincard"><div class="row">${coinSVG(30)}<div style="text-align:left;min-width:0"><div class="eyebrow">Monety</div><b class="num" style="font-size:20px;color:${n ? 'var(--accent)' : 'var(--muted)'}">+${n}</b> <span class="muted" style="font-size:13px">${coinWord(n)}</span></div><div class="sp"></div><div style="text-align:right"><div class="muted" style="font-size:11px">stan konta</div><b class="num">${S.coins}</b></div></div>
+    ${parts && parts.length ? `<div class="muted" style="font-size:12px;text-align:left;margin-top:6px">${parts.join(' · ')}</div>` : ''}${hint ? `<div class="muted" style="font-size:12px;text-align:left;margin-top:4px">${hint}</div>` : ''}</div>`;
+}
 const dmIcon = () => `<svg class="dm-ic" viewBox="0 0 26 22" aria-hidden="true"><rect x="2" y="8" width="6" height="13" rx="2" fill="#fff"/><rect x="9" y="7" width="6" height="14" rx="2" fill="#fff"/><rect x="16" y="8" width="6" height="13" rx="2" fill="#fff"/><rect x="1" y="12" width="22" height="4" rx="1" fill="#7a1420"/><path d="M12 7c0-3 3-4 6-5" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="19.5" cy="2" r="2" fill="#ffd23f"/></svg>`;
 const ic = (n, cls = 'icon') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
 
@@ -1262,7 +1284,7 @@ function levelPassed(info) {
     <div class="big">Poziom ${l} zaliczony!</div>
     <div class="megapct"><span id="pc">${fmtPct(prev)}</span><small>%</small></div>
     <p style="margin:0">Tylko <b>${fmtPct(now)}%</b> graczy przeszło ten poziom.${l >= 8 && !RUN.train ? ' Czy Twój znajomy da radę?' : ''}</p>
-    <div class="row" style="justify-content:center;flex-wrap:wrap"><span class="pill num">+${pts} pkt</span><span class="pill num" style="color:var(--violet)">+${xp} XP</span><span class="pill num">Σ ${RUN.score}</span></div>
+    <div class="row" style="justify-content:center;flex-wrap:wrap"><span class="pill num">+${pts} pkt</span><span class="pill num" style="color:var(--violet)">+${xp} XP</span><span class="pill num">Σ ${RUN.score}</span>${!RUN.train && l % 5 === 0 ? `<span class="pill num" style="color:var(--accent)">${coinSVG(16)} +1</span>` : ''}</div>
     <p class="muted" style="margin:0;font-size:13px">Następny: poziom ${l + 1}, przechodzi go ${fmtPct(P[l + 1])}%${RUN.train ? ` · +${xpTrain(l + 1)} XP` : ` · +${xpRun(l + 1, RUN.mode)} XP`}</p>
     <div class="btncol"><button class="btn primary" id="nx">Dalej ${ic('play')}</button>${RUN.train ? '' : `<button class="btn ghost" id="ch">${ic('people')} Wyzwij znajomego</button>`}</div>`);
   const el = $('#pc', o), t0 = performance.now();
@@ -1305,6 +1327,7 @@ function finishRun(quit, won = false) {
   } else {
     S.trainBest[RUN.train] = Math.max(S.trainBest[RUN.train] || 0, reached);
   }
+  res.coins = RUN.train ? 0 : addCoins(Math.floor(reached / 5), `gra: poziom ${reached}`) || 0;
   S.xp += xp;
   res.xp = xp; res.xpBonus = bonus; res.before = before;
   markPlayed();
@@ -1344,6 +1367,7 @@ function resultScreen(res, challenge, newBadges = []) {
     <p style="margin:0">${club ? 'Przeszedłeś wszystkie 30 poziomów. Należysz do <b>1%</b> najlepszych mózgów.' : `Doszedłeś do poziomu <b>${res.lvl}</b>. Tak daleko dochodzi tylko <b>${fmtPct(pct)}%</b> graczy.`}</p>
     <div class="statgrid"><div class="stat"><b>${res.lvl}/30</b><span>poziom</span></div><div class="stat"><b>${res.score}</b><span>punkty</span></div><div class="stat"><b style="font-size:13px;line-height:1.9">${titleFor(res.lvl)}</b><span>ranga</span></div></div>
     ${xpCard(res)}
+    ${res.train ? '' : coinCard(res.coins, res.coins ? [`${res.coins} × 5 ukończonych poziomów`] : [], 'Moneta za każde 5 ukończonych poziomów w jednej grze (treningi się nie liczą).')}
     ${vs}
     ${newBadges.length ? `<div class="card" style="text-align:left"><div class="eyebrow" style="margin-bottom:8px">Nowe odznaki</div>${newBadges.map(b => `<div class="row">${medal(b, true)}<div><b>${BADGES[b].n}</b><div class="muted" style="font-size:12px">${BADGES[b].d}</div></div></div>`).join('')}</div>` : ''}
     <div class="btncol">
@@ -1504,6 +1528,7 @@ function dailyScreen() {
     </div>
     ${done ? `<div class="card"><div class="eyebrow" style="margin-bottom:8px">Pochwal się wynikiem</div><div class="linkbox" style="font-size:15px;letter-spacing:.1em">${dailyGrid()} · ${sum} pkt</div><button class="btn ghost" id="cpy" style="margin-top:10px;width:100%">${ic('copy')} Kopiuj dla znajomych</button></div>` : ''}
     <div class="row" style="margin-top:4px"><div class="eyebrow">Ranking wyzwań dnia</div><div class="sp"></div><span class="muted" style="font-size:12px">${new Date().toLocaleDateString('pl-PL')}</span></div>
+    ${prizeCard('daily')}
     <div class="list" id="dboard"><div class="card muted" style="text-align:center">Ładowanie rankingu…</div></div>
     <p class="foot" id="dnote"></p>
   </div>`;
@@ -1566,6 +1591,7 @@ function rankingScreen(tab = 'day') {
     <div class="topbar"><button class="iconbtn" id="bk" aria-label="Wróć">${ic('back')}</button><h2 style="font-size:20px">Ranking</h2></div>
     <div class="tabs" style="grid-template-columns:repeat(4,1fr)">${Object.entries(BOARDS).map(([k, b]) => `<button aria-pressed="${tab === k}" data-t="${k}" style="font-size:13px">${b.tab}</button>`).join('')}</div>
     <div class="card row"><div style="min-width:0"><div class="eyebrow">${B.title}</div><div style="font-family:var(--font-d);font-size:24px;font-weight:800" id="rmy">—</div><div class="muted" style="font-size:13px">${tab === 'week' ? weekRange() : tab === 'all' ? 'od początku' : new Date().toLocaleDateString('pl-PL')}</div></div><div class="sp"></div><div style="text-align:right"><div class="bigpct num" style="font-size:26px" id="rpts">—</div><div class="muted" style="font-size:12px">${B.unit}</div></div></div>
+    ${prizeCard(tab)}
     <div class="list" id="board"><div class="card muted" style="text-align:center">Ładowanie…</div></div>
     <p class="foot" id="rnote"></p>
   </div>`;
@@ -1722,6 +1748,7 @@ function home() {
   leaveGame(); app.innerHTML = `<div class="screen">
     <div class="topbar"><div class="logo">${logoSVG()}<span>CLUB</span></div><div class="sp"></div>
       <span class="pill" title="Seria dni" style="color:${st ? 'var(--accent)' : 'var(--muted)'}">${ic('flame')}<span class="num">${st}</span></span>
+      <button class="pill coinpill" id="coins" title="Monety" aria-label="Monety">${coinSVG(18)}<span class="num">${S.coins || 0}</span></button>
       <button class="iconbtn" id="snd" aria-label="Dźwięk">${ic(S.sound ? 'sound' : 'mute')}</button>
       <button class="pill" id="prof" aria-label="Profil" style="min-height:40px;border-radius:12px">${ic('user')}<span class="num">${playerLevel()}</span></button></div>
 
@@ -1763,6 +1790,7 @@ function home() {
   $('#dm').onclick = dmLobby;
   $('#snd').onclick = () => { S.sound = !S.sound; save(); $('#snd').innerHTML = ic(S.sound ? 'sound' : 'mute'); if (S.sound) sfx('tap'); };
   $('#prof').onclick = profileScreen;
+  $('#coins').onclick = coinsSheet;
   $$('[data-m]').forEach(b => b.onclick = () => { S.mode = b.dataset.m; save(); $$('[data-m]').forEach(x => x.setAttribute('aria-pressed', x === b)); $('#mdesc').textContent = MODES[S.mode].desc; });
   $('#daily').onclick = dailyScreen;
   $$('[data-c]').forEach(b => b.onclick = () => trainPick(b.dataset.c));
@@ -1776,6 +1804,7 @@ function home() {
   };
   $('#codef').onsubmit = e => { e.preventDefault(); const c = parseToken($('#code').value); if (c) openChallenge(c); else toast('Nieprawidłowy kod wyzwania'); };
   animatePreview();
+  setTimeout(showPendingRewards, 400); checkRewards();
   clearInterval(home.iv); home.iv = setInterval(() => { const e = $('#hcd'); if (!e) return clearInterval(home.iv); e.textContent = hms(msToMidnight()); }, 1000);
   scrollTo(0, 0);
 }
@@ -2113,6 +2142,9 @@ function dmResult(d, win, note) {
   S.dm = S.dm || { w: 0, l: 0, best: 0, games: 0 };
   S.dm.games++; if (win) S.dm.w++; else S.dm.l++; S.dm.best = Math.max(S.dm.best || 0, Math.round(dur));
   S.xp += rw.xp;
+  const cTen = Math.floor(g.solved / 10), cWin = win ? 1 : 0, cParts = [];
+  if (cTen) cParts.push(`${cTen} × 10 zadań +${cTen}`); if (cWin) cParts.push('zwycięstwo +1');
+  const coins = addCoins(cTen + cWin, `Deathmatch: ${win ? 'wygrana' : 'przegrana'}`) || 0;
   const w = weekKey();
   S.weekPts[w] = (S.weekPts[w] || 0) + rw.pts; S.totalRun += rw.pts;
   markPlayed();
@@ -2131,6 +2163,7 @@ function dmResult(d, win, note) {
     <div class="vs"><div class="side ${win ? 'win' : ''}"><div class="nm">${esc(displayName())}</div><b>${g.solved} ✓</b><span class="muted num">czas ${fmt(dur)}</span></div><div class="mid">VS</div><div class="side ${win ? '' : 'win'}"><div class="nm">${esc(opp.name)}</div><b>${od ? od.solved : g.oppSolved} ✓</b><span class="muted num">${od ? 'czas ' + fmt(od.dur) : '&nbsp;'}</span></div></div>
     <div class="statgrid"><div class="stat"><b>+${rw.pts}</b><span>punkty</span></div><div class="stat"><b>${fmt(dur)}</b><span>czas walki</span></div><div class="stat"><b>${S.dm.w}:${S.dm.l}</b><span>bilans W:P</span></div></div>
     ${xpCard(res)}
+    ${coinCard(coins, cParts, '+1 moneta za każde 10 rozwiązanych zadań i +1 za zwycięstwo.')}
     ${rw.long ? `<div class="muted" style="font-size:13px;margin-top:-6px">Długa walka: +${rw.long * (win ? 60 : 25)} pkt bonusu</div>` : `<div class="muted" style="font-size:13px;margin-top:-6px">Walka dłuższa niż 60 s daje bonus punktów i XP obu graczom.</div>`}
     ${newB.length ? `<div class="card" style="text-align:left"><div class="eyebrow" style="margin-bottom:8px">Nowe odznaki</div>${newB.map(b => `<div class="row">${medal(b, true)}<div><b>${BADGES[b].n}</b><div class="muted" style="font-size:12px">${BADGES[b].d}</div></div></div>`).join('')}</div>` : ''}
     <div class="btncol"><button class="btn primary" id="dm-again">${ic('bolt')} Szukaj kolejnego rywala</button><button class="btn line" id="dm-home">Menu</button></div>
@@ -2138,6 +2171,74 @@ function dmResult(d, win, note) {
   $('#dm-again').onclick = dmLobby;
   $('#dm-home').onclick = home;
   scrollTo(0, 0);
+}
+
+/* =========================================================
+   MONETY ZA RANKINGI
+   Serwer (funkcja my_rewards) liczy miejsca dopiero po końcu
+   dnia / tygodnia (czas polski). Gra odbiera każdą nagrodę raz
+   i zapamiętuje to w S.rwClaimed.
+   ========================================================= */
+const RW_NAME = { day: 'rankingu dnia (najlepsza gra)', week: 'rankingu tygodnia', daily: 'rankingu wyzwań dnia' };
+function rwPeriod(board, period) {
+  const d = new Date(period + 'T12:00:00');
+  const f = x => x.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' });
+  if (board === 'week') { const e = new Date(d); e.setDate(d.getDate() + 6); return `${d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })} – ${e.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}`; }
+  return f(d);
+}
+async function checkRewards(force) {
+  if (!onlineOn() || checkRewards.busy) return;
+  if (!force && checkRewards.last && Date.now() - checkRewards.last < 5 * 60000) return;
+  checkRewards.busy = true; checkRewards.last = Date.now();
+  try {
+    if (!S.rwSince) { const d = new Date(); d.setDate(d.getDate() - ((S.games || S.dailyDone) ? 14 : 0)); S.rwSince = dkey(d); save(); }
+    const rows = await sbFetch('/rest/v1/rpc/my_rewards', { p_player: playerId(), p_since: S.rwSince });
+    let got = 0;
+    (rows || []).forEach(r => {
+      const key = `${r.board}:${r.period}`;
+      if (S.rwClaimed[key] || !r.coins) return;
+      S.rwClaimed[key] = +r.coins;
+      addCoins(+r.coins, `${r.rank}. miejsce w ${RW_NAME[r.board] || r.board}, ${rwPeriod(r.board, r.period)}`);
+      S.rwPending.push({ board: r.board, period: r.period, rank: +r.rank, coins: +r.coins });
+      got++;
+    });
+    // porządki: zapomnij odebrane nagrody starsze niż 40 dni i przesuń początek okna
+    const old = new Date(); old.setDate(old.getDate() - 40); const ok = dkey(old);
+    Object.keys(S.rwClaimed).forEach(k => { if (k.split(':')[1] < ok) delete S.rwClaimed[k]; });
+    const since = new Date(); since.setDate(since.getDate() - 14); if (S.rwSince < dkey(since)) S.rwSince = dkey(since);
+    save();
+    if (got) showPendingRewards();
+  } catch (e) { } finally { checkRewards.busy = false; }
+}
+function showPendingRewards() {
+  if (!S.rwPending || !S.rwPending.length || $('#ov') || document.body.classList.contains('ingame') || !$('#coins')) return;
+  const list = S.rwPending.slice().sort((a, b) => b.coins - a.coins), sum = list.reduce((a, r) => a + r.coins, 0);
+  S.rwPending = []; save();
+  const medalTxt = r => r <= 3 ? ['🥇', '🥈', '🥉'][r - 1] : `#${r}`;
+  const o = overlay(`<div class="coinburst">${coinSVG(84)}</div>
+    <div class="big">Nagroda za ranking!</div>
+    <div class="megapct" style="font-size:44px">+${sum}<small style="font-size:18px"> ${coinWord(sum)}</small></div>
+    <div class="list" style="text-align:left">${list.map(r => `<div class="lrow"><span class="rk">${medalTxt(r.rank)}</span><span class="nm" style="white-space:normal;font-size:14px">${r.rank}. miejsce w ${RW_NAME[r.board] || r.board}<small class="muted" style="display:block;font-size:12px">${rwPeriod(r.board, r.period)}</small></span><span class="sc" style="color:var(--accent)">+${r.coins}</span></div>`).join('')}</div>
+    <p class="muted" style="margin:0;font-size:13px">Stan konta: <b class="num">${S.coins}</b> ${coinWord(S.coins)}</p>
+    <button class="btn primary" id="rw-ok" style="width:100%">Super!</button>`);
+  confetti(90); sfx('win');
+  $('#rw-ok', o).onclick = () => { closeOverlay(); const c = $('#coins .num'); if (c) c.textContent = S.coins; };
+  const c = $('#coins .num'); if (c) c.textContent = S.coins;
+}
+function coinsSheet() {
+  const log = (S.coinLog || []).slice(0, 8);
+  const o = overlay(`<div class="coinburst">${coinSVG(64)}</div><div class="big">Twoje monety: <span class="num" style="color:var(--accent)">${S.coins || 0}</span></div>
+    <div class="card" style="text-align:left;font-size:13px;display:flex;flex-direction:column;gap:6px;background:var(--surface2)">
+      <div><b>Gra 30 poziomów:</b> +1 za każde 5 ukończonych poziomów w jednej grze (bez treningów)</div>
+      <div><b>Deathmatch:</b> +1 za każde 10 rozwiązanych zadań, +1 za zwycięstwo</div>
+      <div><b>Ranking dnia:</b> 1. +5, 2. +3, 3. +2, 4–10 +1</div>
+      <div><b>Ranking tygodnia:</b> 1. +50, 2. +30, 3. +20, 4–10 +10</div>
+      <div><b>Ranking wyzwań dnia:</b> 1. +10, 2. +5, 3. +2</div>
+      <div class="muted">Nagrody rankingowe przychodzą po zakończeniu dnia lub tygodnia (czas polski).</div>
+    </div>
+    ${log.length ? `<div class="eyebrow" style="text-align:left">Ostatnio zdobyte</div><div class="list" style="text-align:left">${log.map(x => `<div class="lrow"><span class="rk">${coinSVG(20)}</span><span class="nm" style="font-size:13px;white-space:normal">${esc(x.why || '')}</span><span class="sc" style="color:var(--accent)">+${x.n}</span></div>`).join('')}</div>` : ''}
+    <button class="btn primary" id="co-ok" style="width:100%">OK</button>`);
+  $('#co-ok', o).onclick = closeOverlay;
 }
 
 /* ---------- blokada zoomu: gra działa jak aplikacja ---------- */
