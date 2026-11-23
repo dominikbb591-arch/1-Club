@@ -96,7 +96,7 @@ h1,h2,h3{font-family:var(--font-d);margin:0;text-wrap:balance;letter-spacing:-.0
 .cat b{font-family:var(--font-d);font-size:15px;padding:0 4px}
 .cat span{font-size:12.5px;color:var(--muted);padding:0 4px;margin-top:-6px}
 
-.tiles3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tiles3{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .tilebtn{background:var(--surface);border-radius:var(--r);padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;font-weight:700;font-size:13px;text-align:center}
 .tilebtn svg{width:26px;height:26px;color:var(--accent)}
 .code{display:flex;gap:8px}
@@ -350,22 +350,34 @@ function markPlayed() {
 function streakNow() { return (S.streak.last === today() || S.streak.last === yesterday()) ? S.streak.count : 0; }
 /* ---------- XP i poziom gracza ---------- */
 // XP potrzebne na przejście z poziomu n na n+1: 100, 150, 200, ...
-const xpNeed = n => 100 + 50 * (n - 1);
+// 100 poziomów gracza; każdy kolejny wymaga coraz więcej XP (112 XP na 2. poziom … ok. 4 800 XP na 100.)
+const MAX_LV = 100;
+const xpNeed = n => Math.round(100 + 12 * Math.pow(n, 1.3));
 function levelInfo(xp = S.xp) {
   let lv = 1, base = 0;
-  while (xp >= base + xpNeed(lv)) { base += xpNeed(lv); lv++; }
+  while (lv < MAX_LV && xp >= base + xpNeed(lv)) { base += xpNeed(lv); lv++; }
+  if (lv >= MAX_LV) return { lv: MAX_LV, into: 1, need: 1, toNext: 0, max: true };
   return { lv, into: xp - base, need: xpNeed(lv), toNext: base + xpNeed(lv) - xp };
 }
+const xpToReach = lv => { let t = 0; for (let n = 1; n < lv; n++) t += xpNeed(n); return t; };
 const playerLevel = () => levelInfo().lv;
-const PTITLES = [[1, 'Nowicjusz'], [3, 'Uczeń'], [6, 'Myśliciel'], [10, 'Erudyta'], [15, 'Mędrzec'], [20, 'Arcymistrz'], [30, 'Legenda']];
-const ptitle = lv => PTITLES.filter(t => lv >= t[0]).pop()[1];
-const XP_MODE = { easy: .8, normal: 1, expert: 1.25 };
-// zwykła gra: 10, 12, 14 ... 68 XP za poziom (× tryb)
-const xpRun = (l, mode) => Math.round((8 + 2 * l) * XP_MODE[mode]);
-// trening: wyraźnie mniej, ale rośnie z poziomem: 4, 4, 5 ... 18 XP
-const xpTrain = l => Math.round(3 + .5 * l);
-// wyzwanie dnia: zależnie od zdobytych punktów (szybkości)
-const xpDaily = pts => pts ? Math.round(10 + pts / 30) : 2;
+// 20 rang, nowa co 5 poziomów
+const RANKS = ['Nowicjusz', 'Uczeń', 'Bystrzak', 'Odkrywca', 'Myśliciel', 'Analityk', 'Strateg', 'Taktyk', 'Erudyta', 'Logik', 'Łamigłówkarz', 'Mędrzec', 'Wizjoner', 'Profesor', 'Geniusz', 'Arcymistrz', 'Władca umysłu', 'Tytan intelektu', 'Legenda', 'Klub 1%'];
+const rankIdx = lv => Math.min(19, Math.floor((lv - 1) / 5));
+const ptitle = lv => RANKS[rankIdx(lv)];
+const TIERS = [['#c98a4b', '#7a4a1f', 'Brąz'], ['#cfd6de', '#6b7684', 'Srebro'], ['#ffd23f', '#a37a00', 'Złoto'], ['#7ee3ff', '#1f7f9c', 'Diament']];
+function rankEmblem(i, size = 48, locked = false) {
+  const [c1, c2] = TIERS[Math.floor(i / 5)], stars = i % 5 + 1;
+  const st = range(stars).map(k => { const x = 32 + (k - (stars - 1) / 2) * 9; return `<path transform="translate(${x} 47) scale(.32)" d="m0-12 3.5 7.6 8.3.9-6.2 5.6 1.7 8.2L0 6.1-7.3 10.3-5.6 2.1-11.8-3.5-3.5-4.4z" fill="${locked ? '#55535e' : '#fff'}"/>`; }).join('');
+  return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true" style="flex:none"><path d="M32 3 56 12v20c0 14-10 24-24 29C18 56 8 46 8 32V12z" fill="${locked ? '#2c2c35' : c2}"/><path d="M32 8 51 15v17c0 11-8 19-19 24-11-5-19-13-19-24V15z" fill="${locked ? '#3a3a44' : c1}"/><text x="32" y="38" text-anchor="middle" font-family="Unbounded, Arial Black, sans-serif" font-weight="800" font-size="${i + 1 >= 10 ? 15 : 18}" fill="${locked ? '#6d6b78' : '#17161a'}">${i + 1}</text>${st}</svg>`;
+}
+const XP_MODE = { easy: .6, normal: 1, expert: 1.6 };
+// zwykła gra: 8 XP za poziom 1 … 54 XP za poziom 30; Ekspert ×1,6 i dodatkowo rośnie z poziomem (do 130 XP za poziom 30)
+const xpRun = (l, mode) => Math.round((6 + 1.6 * l) * XP_MODE[mode] * (mode === 'expert' ? 1 + l / 60 : 1));
+// trening: wyraźnie mniej, rośnie z poziomem: 2 … 14 XP
+const xpTrain = l => Math.round(2 + .4 * l);
+// wyzwania dnia: dużo XP za szybkie rozwiązanie, im trudniejsze (dalsze) wyzwanie, tym więcej; seria dni daje do +50%
+const xpDaily = (pts, lvl = 6) => pts ? Math.round((15 + pts / 18 + lvl) * (1 + Math.min(.5, streakNow() * .05))) : 3;
 function weekKey(d = new Date()) { const m = new Date(d); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return dkey(m); }
 function weekRange() { const m = new Date(); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); const e = new Date(m); e.setDate(m.getDate() + 6); const f = x => x.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }); return `${f(m)} – ${f(e)}`; }
 function playerId() {
@@ -803,18 +815,19 @@ const PUZ = {
   },
   compare: {
     cat: 'log', min: 2, gen(r, l) {
-      const base = 20 + l * 6, sp = Math.max(4, 30 - l);
+      const base = 14 + l * 3, sp = Math.max(3, Math.round(16 - l * .45));
       const vals = new Set(); while (vals.size < 4) vals.add(r.range(base - sp, base + sp));
       const v = [...vals], wantMax = l < 8 || r() < .5;
       const target = wantMax ? Math.max(...v) : Math.min(...v);
       const expr = x => {
-        const ops = ['+', '-', '×', '÷'].filter(o => l >= 6 || o === '+' || o === '-');
+        // im wyższy poziom, tym więcej rodzajów działań; liczby zostają „do policzenia w głowie”
+        const ops = ['+', '-'].concat(l >= 8 ? ['×'] : [], l >= 15 ? ['÷'] : []);
         for (let g = 0; g < 10; g++) {
           const o = r.pick(ops);
-          if (o === '+') { const a = r.range(1, x - 1); return `${a} + ${x - a}`; }
-          if (o === '-') { const b = r.range(2, base); return `${x + b} − ${b}`; }
-          if (o === '×') { const ds = range(11).map(i => i + 2).filter(d => x % d === 0 && x / d > 1); if (ds.length) { const d = r.pick(ds); return `${x / d} × ${d}`; } }
-          if (o === '÷') { const b = r.range(2, 9); return `${x * b} ÷ ${b}`; }
+          if (o === '+') { const a = r.range(Math.max(1, Math.round(x * .2)), Math.round(x * .8)); return `${a} + ${x - a}`; }
+          if (o === '-') { const b = r.range(2, 9 + Math.floor(l / 2)); return `${x + b} − ${b}`; }
+          if (o === '×') { const ds = [2, 3, 4, 5, 6, 7, 8, 9].filter(d => x % d === 0 && x / d >= 2 && x / d <= 15); if (ds.length) { const d = r.pick(ds); return `${x / d} × ${d}`; } }
+          if (o === '÷') { const b = r.range(2, l >= 24 ? 6 : 4); return `${x * b} ÷ ${b}`; }
         }
         const a = r.range(1, x - 1); return `${a} + ${x - a}`;
       };
@@ -823,7 +836,7 @@ const PUZ = {
         title: 'Szybka matma', instr: `Który wynik jest <b>${wantMax ? 'NAJWIĘKSZY' : 'NAJMNIEJSZY'}</b>?`,
         render(st, api) {
           optButtons(st, exprs, exprs.find(o => o.x === target), api, o => `<span style="font-size:18px">${o.e}</span>`);
-          api.timer(Math.max(6, 13 - l * .2));
+          api.timer(12 + l * .12);
         }
       };
     }
@@ -863,26 +876,26 @@ const PUZ = {
     cat: 'ref', min: 2, gen(r, l) {
       const N = 8 + Math.floor(l / 3);
       const seq = range(N).map(i => i < 2 ? 'go' : (r() < .64 ? 'go' : (l >= 12 && r() < .5 ? 'sq' : 'red')));
-      const pos = range(N).map(() => [r.range(22, 78), r.range(25, 75)]);
+      const pos = []; while (pos.length < N) { const q = [r.range(18, 82), r.range(18, 80)], pr = pos[pos.length - 1]; if (!pr || Math.hypot(q[0] - pr[0], q[1] - pr[1]) > 25) pos.push(q); }
       return {
-        title: 'Stop / Start', dark: true, instr: 'Dotykaj tylko <b>żółtych kół</b>. Na wszystko inne: nie ruszaj się!',
+        title: 'Stop / Start', dark: true, instr: 'Dotykaj tylko <b>żółtych kół</b>, gdziekolwiek się pojawią. Na wszystko inne: nie dotykaj!',
         render(st, api) {
-          const win = Math.max(480, 1000 - l * 16) * (api.mode === 'easy' ? 1.25 : api.mode === 'expert' ? .9 : 1);
+          const win = Math.max(650, 1200 - l * 16) * (api.mode === 'easy' ? 1.25 : api.mode === 'expert' ? .9 : 1), size = l >= 15 ? 104 : 124;
           st.innerHTML = `<div class="react" style="cursor:default"></div><div class="progressdots" style="position:absolute;bottom:16px;left:0;right:0">${seq.map(() => '<i></i>').join('')}</div>`;
           const box = $('.react', st), dots = $$('.progressdots i', st); let i = -1, tapped = false, cur = null;
           const show = () => {
             i++; if (i >= N) { api.done(true, { frac: .7 }); return; }
             tapped = false; cur = seq[i];
             const s = cur === 'go' ? shp('circle', 50, 50, 46, '#ffd23f') : cur === 'red' ? shp('circle', 50, 50, 46, '#ff4d4d') : shp('square', 50, 50, 46, '#ffd23f');
-            const p = l >= 15 ? pos[i] : [50, 50];
-            box.innerHTML = `<svg class="stim" viewBox="0 0 100 100" style="position:absolute;left:${p[0]}%;top:${p[1]}%;transform:translate(-50%,-50%)">${s}</svg>`;
+            const p = pos[i];
+            box.innerHTML = `<svg class="stim" viewBox="0 0 100 100" style="position:absolute;left:${p[0]}%;top:${p[1]}%;width:${size}px;height:${size}px;margin:-${size / 2}px 0 0 -${size / 2}px;cursor:pointer">${s}</svg>`;
             api.after(win, () => {
               if (cur === 'go' && !tapped) { api.done(false, { msg: 'Przegapione żółte koło!' }); return; }
               dots[i].classList.add('on'); box.innerHTML = ''; cur = null; api.after(260, show);
             });
           };
-          st.addEventListener('pointerdown', () => {
-            if (!api.live() || !cur || tapped) return; tapped = true;
+          st.addEventListener('pointerdown', e => {
+            if (!api.live() || !cur || tapped || !e.target.closest('.stim')) return; tapped = true;
             if (cur !== 'go') { api.done(false, { msg: cur === 'sq' ? 'To był kwadrat, nie koło!' : 'To nie było żółte koło!' }); return; }
             sfx('tap'); $('svg', box) && ($('svg', box).style.opacity = '.3');
           });
@@ -1231,8 +1244,8 @@ function xpCard(res) {
   const now = levelInfo(), up = res.before && now.lv > res.before.lv;
   return `<div class="card" style="text-align:left;display:flex;flex-direction:column;gap:8px">
     <div class="row"><div class="eyebrow">Doświadczenie</div><div class="sp"></div><b class="num" style="color:var(--violet)">+${res.xp} XP</b></div>
-    ${up ? `<div style="font-family:var(--font-d);font-weight:800;color:var(--accent)">Awans! Poziom gracza ${now.lv}: ${ptitle(now.lv)}</div>` : ''}
-    <div class="row"><b>Poziom ${now.lv}</b><span class="muted" style="font-size:13px">${ptitle(now.lv)}</span><div class="sp"></div><span class="muted num" style="font-size:12px">${now.into}/${now.need}</span></div>
+    ${up ? (rankIdx(now.lv) > rankIdx(res.before.lv) ? `<div class="row">${rankEmblem(rankIdx(now.lv), 44)}<div><div style="font-family:var(--font-d);font-weight:800;color:var(--accent)">Nowa ranga: ${ptitle(now.lv)}!</div><div class="muted" style="font-size:12px">Awans na poziom ${now.lv}</div></div></div>` : `<div style="font-family:var(--font-d);font-weight:800;color:var(--accent)">Awans na poziom ${now.lv}!</div>`) : ''}
+    <div class="row">${rankEmblem(rankIdx(now.lv), 30)}<b>Poziom ${now.lv}</b><span class="muted" style="font-size:13px">${ptitle(now.lv)}</span><div class="sp"></div><span class="muted num" style="font-size:12px">${now.max ? 'MAX' : `${now.into}/${now.need}`}</span></div>
     <div class="bar xpbar"><i style="width:${Math.round(now.into / now.need * 100)}%"></i></div>
     ${res.xpBonus && res.xpBonus.length ? `<div class="muted" style="font-size:12px">Bonusy: ${res.xpBonus.join(' · ')}</div>` : ''}
     ${res.train ? `<div class="muted" style="font-size:12px">Trening daje mniej XP niż zwykła gra, ale im dalej dojdziesz, tym więcej XP za poziom.</div>` : ''}
@@ -1462,7 +1475,10 @@ function recordDaily(i, ok, pts = 0, ms = 0, cat) {
   if (i === 'b') { ds.bonus = ok; ds.bpts = pts; ds.bms = ms; } else { ds.r[+i] = ok; ds.pts[+i] = pts; ds.ms[+i] = ms; }
   if (cat) catStat(cat, ok);
   if (ok) S.dailyDone++;
-  const xp = xpDaily(pts);
+  const plan = dailyPlan(), lvlD = i === 'b' ? plan.bonus.lvl : plan.list[+i].lvl;
+  let xp = xpDaily(pts, lvlD);
+  if (ds.r.every(v => v === true) && i !== 'b' && ok) xp += 80; // komplet 5 wyzwań
+  if (i === 'b' && ok) xp += 60;
   S.xp += xp;
   if (pts) { S.dailyPts[today()] = (S.dailyPts[today()] || 0) + pts; submitScore('daily', pts, 0, S.mode); }
   markPlayed(); checkBadges({}); save();
@@ -1526,6 +1542,17 @@ function checkBadges(ctx) {
   S.badges = [...got];
   return add;
 }
+function ranksScreen() {
+  const L = levelInfo(), cur = rankIdx(L.lv);
+  leaveGame(); app.innerHTML = `<div class="screen">
+    <div class="topbar"><button class="iconbtn" id="bk" aria-label="Wróć">${ic('back')}</button><h2 style="font-size:20px">Rangi</h2><div class="sp"></div><span class="pill num">${cur + 1}/20</span></div>
+    <p class="muted" style="margin:0">100 poziomów gracza, nowa ranga co 5 poziomów. XP zdobywasz w grach, a najwięcej w trybie Ekspert i w wyzwaniach dnia.</p>
+    <div class="list">${RANKS.map((n, i) => { const from = i * 5 + 1, need = xpToReach(from), got = i <= cur; const tier = TIERS[Math.floor(i / 5)][2];
+      return `<div class="lrow ${i === cur ? 'me' : ''}" style="grid-template-columns:52px 1fr auto;${got ? '' : 'opacity:.75'}">${rankEmblem(i, 48, !got)}<div style="min-width:0"><b style="font-family:var(--font-d);font-size:14px">${n}</b><div class="muted" style="font-size:12px">Poziomy ${from}–${from + 4} · ${tier}</div>${i === cur && !L.max ? `<div class="bar xpbar" style="height:6px;margin-top:6px"><i style="width:${Math.round((S.xp - need) / Math.max(1, xpToReach(Math.min(100, from + 5)) - need) * 100)}%"></i></div>` : ''}</div><span class="sc" style="font-size:12px">${i < cur ? '✓' : i === cur ? 'Twoja' : need.toLocaleString('pl-PL') + ' XP'}</span></div>`; }).join('')}</div>
+  </div>`;
+  $('#bk').onclick = profileScreen;
+  scrollTo(0, 0);
+}
 function badgesScreen() {
   leaveGame(); app.innerHTML = `<div class="screen">
     <div class="topbar"><button class="iconbtn" id="bk" aria-label="Wróć">${ic('back')}</button><h2 style="font-size:20px">Odznaki</h2><div class="sp"></div><span class="pill num">${S.badges.length}/${Object.keys(BADGES).length}</span></div>
@@ -1548,9 +1575,10 @@ function profileScreen() {
     <section class="hero" style="gap:12px">
       <div class="row" style="gap:14px;align-items:center">
         <div class="avatar">${brainSVG('brain', S.best.level >= 15 ? 'wow' : 'happy', avatarColor()).replace('class="brain"', 'class="brain" style="width:72px;height:60px"')}<span class="lvbadge num">${L.lv}</span></div>
-        <div style="min-width:0;flex:1"><div style="font-family:var(--font-d);font-size:20px;font-weight:800;overflow-wrap:anywhere">${esc(displayName())}</div><div style="color:var(--accent);font-weight:800">${ptitle(L.lv)} · poziom ${L.lv}</div><div class="muted" style="font-size:12px">Ranga w grze: ${titleFor(S.best.level)}</div></div>
+        <div style="min-width:0;flex:1"><div style="font-family:var(--font-d);font-size:20px;font-weight:800;overflow-wrap:anywhere">${esc(displayName())}</div><button class="row" id="rk" style="gap:6px;padding:0;text-align:left">${rankEmblem(rankIdx(L.lv), 26)}<span style="color:var(--accent);font-weight:800">${ptitle(L.lv)} · poziom ${L.lv}/100</span></button><div class="muted" style="font-size:12px">${rankIdx(L.lv) < 19 ? `Następna ranga: ${RANKS[rankIdx(L.lv) + 1]} (poziom ${(rankIdx(L.lv) + 1) * 5 + 1})` : 'Najwyższa ranga!'}</div></div>
       </div>
-      <div><div class="row" style="font-size:13px"><span class="muted">Doświadczenie</span><div class="sp"></div><span class="num">${L.into} / ${L.need} XP</span></div><div class="bar xpbar" style="margin-top:6px"><i style="width:${Math.round(L.into / L.need * 100)}%"></i></div><div class="muted" style="font-size:12px;margin-top:6px">Do poziomu ${L.lv + 1} brakuje ${L.toNext} XP · łącznie ${S.xp.toLocaleString('pl-PL')} XP</div></div>
+      <div><div class="row" style="font-size:13px"><span class="muted">Doświadczenie</span><div class="sp"></div><span class="num">${L.into} / ${L.need} XP</span></div><div class="bar xpbar" style="margin-top:6px"><i style="width:${Math.round(L.into / L.need * 100)}%"></i></div><div class="muted" style="font-size:12px;margin-top:6px">${L.max ? 'Maksymalny poziom!' : `Do poziomu ${L.lv + 1} brakuje ${L.toNext} XP`} · łącznie ${S.xp.toLocaleString('pl-PL')} XP</div></div>
+      <button class="btn ghost sm" id="rk2">${ic('crown')} Zobacz wszystkie 20 rang</button>
       <div class="field-in"><label class="eyebrow" for="pn">Pseudonim w rankingu</label><input id="pn" maxlength="14" value="${esc(S.name)}" placeholder="${esc(displayName())}"></div>
       <div><div class="eyebrow" style="margin-bottom:8px">Kolor mózgu</div><div class="row" style="gap:8px">${AVATARS.map((c, i) => `<button class="swatch" data-av="${i}" aria-label="Kolor ${i + 1}" aria-pressed="${(S.avatar || 0) === i}" style="background:${c}"></button>`).join('')}</div></div>
     </section>
@@ -1562,12 +1590,13 @@ function profileScreen() {
     <div class="card"><div class="eyebrow" style="margin-bottom:8px">Rekordy w trybach</div><div class="statgrid">${Object.entries(MODES).map(([k, m]) => statBox(`${S.bestBy[k] || 0}/30`, m.label)).join('')}</div></div>
     <button class="card row" id="pb" style="text-align:left"><div><div class="eyebrow">Odznaki</div><div style="font-weight:800;margin-top:4px">${S.badges.length} z ${Object.keys(BADGES).length}</div></div><div class="sp"></div><div class="row" style="gap:4px">${S.badges.slice(-4).map(b => medal(b, true)).join('') || '<span class="muted">jeszcze brak</span>'}</div></button>
     <div class="card"><div class="eyebrow" style="margin-bottom:8px">Ostatnie gry</div>${runs.slice(0, 8).map(h => `<div class="row" style="padding:7px 0;border-bottom:1px solid var(--line);font-size:13px"><span class="num muted" style="font-size:12px">${h.date.slice(5).split('-').reverse().join('.')}</span><span>${MODES[h.mode].label}</span><div class="sp"></div><b class="num">poz. ${h.lvl}</b><span class="num" style="color:var(--accent);min-width:60px;text-align:right">${h.score.toLocaleString('pl-PL')}</span></div>`).join('') || '<span class="muted">Brak gier</span>'}</div>
-    <div class="card" style="display:flex;flex-direction:column;gap:6px"><div class="eyebrow">Jak zdobywać XP</div><div class="muted" style="font-size:13px;line-height:1.6">Zwykła gra: 10 XP za poziom 1, rośnie do 68 XP za poziom 30 (Łatwy ×0,8, Ekspert ×1,25), +5 za grę, +25 za nowy rekord, +100 za komplet 30 poziomów.<br>Trening: 4 XP na początku, do 18 XP za poziom 30.<br>Wyzwania dnia: 10 XP + więcej za szybkie rozwiązanie.</div></div>
+    <div class="card" style="display:flex;flex-direction:column;gap:6px"><div class="eyebrow">Jak zdobywać XP</div><div class="muted" style="font-size:13px;line-height:1.6">Zwykła gra: 8 XP za poziom 1, rośnie do 54 XP za poziom 30. Łatwy ×0,6. <b style="color:var(--fg)">Ekspert ×1,6 i jeszcze więcej na wyższych poziomach</b> (do 130 XP za poziom). +5 za grę, +25 za rekord, +100 za komplet 30 poziomów.<br>Trening: od 2 do 14 XP za poziom.<br><b style="color:var(--fg)">Wyzwania dnia</b>: do ok. 100 XP za szybkie rozwiązanie (trudniejsze dają więcej), +80 za komplet 5, +60 za bonus, a seria dni dodaje do +50%.</div></div>
     <p class="foot">ID gracza: ${playerId().slice(0, 8)} · ${onlineOn() ? 'ranking online włączony' : 'wyniki zapisane na tym urządzeniu'}</p>
     <button class="btn line" id="rs">Wyczyść postęp</button>
   </div>`;
   $('#bk').onclick = home;
   $('#pb').onclick = badgesScreen;
+  $('#rk').onclick = ranksScreen; $('#rk2').onclick = ranksScreen;
   $('#pn').onchange = e => { S.name = e.target.value.trim().slice(0, 14); save(); toast('Zapisano pseudonim'); profileScreen(); };
   $$('[data-av]').forEach(b => b.onclick = () => { S.avatar = +b.dataset.av; save(); profileScreen(); });
   $('#rs').onclick = () => {
@@ -1642,6 +1671,7 @@ function home() {
     <div class="tiles3">
       <button class="tilebtn" id="rank">${ic('trophy')}Ranking</button>
       <button class="tilebtn" id="duel">${ic('people')}Wyzwij znajomego</button>
+      <button class="tilebtn" id="rnk">${rankEmblem(rankIdx(playerLevel()), 28)}Ranga: ${ptitle(playerLevel())} <span class="muted num">poz. ${playerLevel()}</span></button>
       <button class="tilebtn" id="bdg">${ic('star')}Odznaki <span class="muted num">${S.badges.length}/${Object.keys(BADGES).length}</span></button>
     </div>
 
@@ -1659,6 +1689,7 @@ function home() {
   $$('[data-c]').forEach(b => b.onclick = () => trainPick(b.dataset.c));
   $('#rank').onclick = () => rankingScreen();
   $('#bdg').onclick = badgesScreen;
+  $('#rnk').onclick = ranksScreen;
   $('#duel').onclick = () => {
     const last = S.history.find(h => !h.train);
     if (last) challengeSheet({ seed: last.seed, mode: last.mode, lvl: last.lvl, score: last.score });
