@@ -284,7 +284,7 @@ canvas.confetti{position:fixed;inset:0;pointer-events:none;z-index:80;width:100%
    (seed), więc każda ma jedną poprawną odpowiedź, a znajomy
    z linkiem dostaje identyczną rozgrywkę.
    ========================================================= */
-const APP_VERSION = '1.8 (rangi)';
+const APP_VERSION = '1.9';
 const PUBLIC_URL = 'https://claude.ai/artifact/Fx4EbzcJ1xnezqSifC6uTC'; // uzupełniane po publikacji (link do gry)
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1016,14 +1016,14 @@ const PUZ = {
       const rounds = 4 + Math.floor(l / 5);
       const R = range(rounds).map(() => { const w = r.pick(pal); let ink; do ink = r.pick(pal); while (ink === w); return { w, ink, rule: l >= 10 && r() < .45 ? 'word' : 'ink', order: l >= 18 ? r.shuffle(pal) : pal, btnInk: pal.map(() => r.pick(pal)) }; });
       return {
-        title: 'Kolor czy słowo', dark: true, instr: l >= 10 ? 'Czytaj etykietę: <b>KOLOR</b> = kolor czcionki, <b>SŁOWO</b> = co jest napisane' : 'Wybierz <b>kolor czcionki</b>, nie to, co jest napisane',
+        title: 'Kolor czy słowo', dark: true, instr: l >= 10 ? 'Zobaczysz nazwę koloru i etykietę nad nią. <b>KOLOR CZCIONKI</b>: wybierz kolor, którym słowo jest napisane. <b>TREŚĆ SŁOWA</b>: wybierz kolor, który słowo oznacza.' : 'Wybierz <b>kolor czcionki</b>, którym napisano słowo, a nie kolor, który to słowo oznacza.',
         render(st, api) {
           const win = Math.max(1300, 3300 - l * 60) * modeT(api);
           let k = -1;
           const next = () => {
             k++; if (k >= rounds) { api.done(true, { frac: .7 }); return; }
             const q = R[k];
-            st.innerHTML = `<span class="rule ${q.rule === 'word' ? 'alt' : ''}">${q.rule === 'word' ? 'SŁOWO' : 'KOLOR'}</span><div class="stroopword" style="color:${COL[q.ink]}">${COL_PL[q.w]}</div><div class="stroopbtns">${q.order.map((c, j) => `<button data-c="${c}" style="${l >= 20 ? `color:${COL[q.btnInk[j]]}` : ''}">${COL_PL[c]}</button>`).join('')}</div><div class="progressdots">${R.map((_, j) => `<i class="${j < k ? 'on' : ''}"></i>`).join('')}</div>`;
+            st.innerHTML = `<span class="rule ${q.rule === 'word' ? 'alt' : ''}">${q.rule === 'word' ? 'TREŚĆ SŁOWA' : 'KOLOR CZCIONKI'}</span><div class="stroopword" style="color:${COL[q.ink]}">${COL_PL[q.w]}</div><div class="stroopbtns">${q.order.map((c, j) => `<button data-c="${c}" style="${l >= 20 ? `color:${COL[q.btnInk[j]]}` : ''}">${COL_PL[c]}</button>`).join('')}</div><div class="progressdots">${R.map((_, j) => `<i class="${j < k ? 'on' : ''}"></i>`).join('')}</div>`;
             const id = api.after(win, () => api.done(false, { msg: 'Za wolno!' }));
             $('.stroopbtns', st).addEventListener('click', e => {
               const b = e.target.closest('button'); if (!b || !api.live()) return; clearTimeout(id);
@@ -1117,13 +1117,16 @@ function runPuzzle(p, mode, onDone) {
   };
   // faza czytania polecenia: 2–5 s (zależnie od długości), potem start zadania i odliczania
   const plain = p.instr.replace(/<[^>]+>/g, '');
-  const readMs = Math.round(Math.min(5000, Math.max(2000, 1200 + plain.length * 40)) * (mode === 'easy' ? 1.2 : 1));
+  const readMs = Math.round(Math.min(8000, Math.max(3000, 1500 + plain.length * 45)) * (mode === 'easy' ? 1.2 : 1));
   $('#g-instr').innerHTML = '<span class="muted">Przeczytaj polecenie…</span>';
   stage.innerHTML = `<div class="readcard"><div class="eyebrow">${CATS[p.cat].name} · ${p.title}</div><div class="rc-text">${p.instr}</div><div class="rc-count">${Math.ceil(readMs / 1000)}</div><div class="rc-bar"><i style="transition:transform ${readMs}ms linear"></i></div><button class="btn primary sm" type="button">Jestem gotowy</button></div>`;
   requestAnimationFrame(() => requestAnimationFrame(() => { const i = $('.rc-bar i', stage); if (i) i.style.transform = 'scaleX(0)'; }));
   let started = false;
-  const begin = () => { if (started || !ses.alive) return; started = true; ses.tPlay = performance.now(); stage.innerHTML = ''; $('#g-instr').innerHTML = p.instr; p.render(stage, api); };
-  $('.readcard button', stage).addEventListener('click', begin);
+  const begin = () => { if (started || !ses.alive) return; started = true; ses.tPlay = performance.now(); ses.lockUntil = performance.now() + 450; stage.innerHTML = ''; $('#g-instr').innerHTML = p.instr; p.render(stage, api); };
+  $('.readcard button', stage).addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); setTimeout(begin, 0); });
+  // blokada „przebicia” dotyku: przez chwilę po starcie zadania ignorujemy dotknięcia (np. palec z przycisku „Jestem gotowy”)
+  const guard = e => { if (ses.lockUntil && performance.now() < ses.lockUntil) { e.stopPropagation(); e.preventDefault(); } };
+  ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend', 'mousedown'].forEach(t => stage.addEventListener(t, guard, { capture: true, passive: false }));
   const tStart = performance.now();
   for (let k = 1; k * 1000 < readMs; k++) api.after(k * 1000, () => { const c = $('.rc-count', stage); if (c && !started) { c.textContent = Math.ceil((readMs - (performance.now() - tStart)) / 1000); sfx('tick'); } });
   api.after(readMs, begin);
